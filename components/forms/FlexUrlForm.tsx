@@ -1,7 +1,11 @@
 "use client";
 
 import * as z from "zod";
+import { useState } from "react";
 import { useForm } from "@tanstack/react-form-nextjs";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useImportFlexUrl } from "@/hooks/useFlex";
 import {
@@ -20,6 +24,8 @@ const formSchema = z.object({
 });
 
 export default function FlexUrlForm() {
+  const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const { mutate, isPending } = useImportFlexUrl();
 
   const form = useForm({
@@ -30,18 +36,51 @@ export default function FlexUrlForm() {
       onSubmit: formSchema,
     },
     onSubmit: async ({ value }) => {
-      mutate(value.url);
+      mutate(value.url, {
+        onSuccess: (response) => {
+          if (!response?.data?.id) {
+            toast.error("Invalid response from server");
+            return;
+          }
+          try {
+            setIsRedirecting(true);
+            router.push(`/job/${response.data.id}`);
+          } catch {
+            setIsRedirecting(false);
+            toast.error("Navigation failed");
+          }
+        },
+        onError: () => {
+          setIsRedirecting(false);
+        },
+      });
     },
   });
   return (
-    <Card className="w-full sm:max-w-md">
+    <>
+      {(isPending || isRedirecting) && (
+        <div
+          className="fixed inset-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200"
+          role="dialog"
+          aria-labelledby="loading-message"
+          aria-busy="true"
+        >
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin" aria-hidden="true" />
+            <p id="loading-message" className="text-lg font-medium" aria-live="polite">
+              Importing your data...
+            </p>
+          </div>
+        </div>
+      )}
+      <Card className="w-full sm:max-w-md">
       <CardHeader>
         <CardTitle>Import Flex Data</CardTitle>
         <CardDescription>Import Data from Flex Pullsheet</CardDescription>
       </CardHeader>
       <CardContent>
         <form
-          id="bug-report-form"
+          id="flex-import-form"
           onSubmit={(e) => {
             e.preventDefault();
             form.handleSubmit();
@@ -76,11 +115,12 @@ export default function FlexUrlForm() {
       </CardContent>
       <CardFooter>
         <Field orientation="horizontal">
-          <Button type="submit" form="bug-report-form" disabled={isPending}>
-            {isPending ? "Importing..." : "Submit"}
+          <Button type="submit" form="flex-import-form" disabled={isPending || isRedirecting}>
+            {isPending ? "Importing..." : isRedirecting ? "Redirecting..." : "Submit"}
           </Button>
         </Field>
       </CardFooter>
     </Card>
+    </>
   );
 }

@@ -1,11 +1,14 @@
-import { Job } from "./jobTypes";
+import { z } from "zod";
+import { jobSchema } from "./jobTypes";
 
-interface FlexImportMetadata {
-  rackDrawingsCreated: number,
-  pullsheetItemsCreated: number;
-}
+const flexImportMetadataSchema = z.object({
+  rackDrawingsCreated: z.number(),
+  pullsheetItemsCreated: z.number(),
+});
 
-export interface FlexImportResponse {
-  data: Job
-  metadata: FlexImportMetadata
-}
+export const flexImportResponseSchema = z.object({
+  data: jobSchema,
+  metadata: flexImportMetadataSchema,
+});
+
+export type FlexImportResponse = z.infer<typeof flexImportResponseSchema>;

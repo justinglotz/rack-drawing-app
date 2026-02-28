@@ -11,10 +11,11 @@ export function useImportFlexUrl() {
     onSuccess: (data) => {
       toast.success(`Imported ${data.data.name} successfully!`);
       // Invalidate queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: queryKeys.flexJobs.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },
     onError: (error) => {
-      toast.error(`Import failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      toast.error(`Import failed: ${message}. Please check the URL and try again.`);
     },
   });
 }
