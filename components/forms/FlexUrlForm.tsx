@@ -1,7 +1,7 @@
 "use client";
 
 import * as z from "zod";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "@tanstack/react-form-nextjs";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -27,6 +27,13 @@ export default function FlexUrlForm() {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const { mutate, isPending } = useImportFlexUrl();
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isPending || isRedirecting) {
+      overlayRef.current?.focus();
+    }
+  }, [isPending, isRedirecting]);
 
   const form = useForm({
     defaultValues: {
@@ -60,8 +67,11 @@ export default function FlexUrlForm() {
     <>
       {(isPending || isRedirecting) && (
         <div
+          ref={overlayRef}
+          tabIndex={-1}
           className="fixed inset-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200"
           role="dialog"
+          aria-modal="true"
           aria-labelledby="loading-message"
           aria-busy="true"
         >

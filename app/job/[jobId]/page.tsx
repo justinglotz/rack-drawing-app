@@ -1,4 +1,7 @@
 import React from "react";
+import { notFound } from "next/navigation";
+import EquipmentSidebar from "@/components/equipment/EquipmentSidebar";
+import { getJob } from "@/api/jobs";
 
 interface JobPageProps {
   params: Promise<{
@@ -6,17 +9,25 @@ interface JobPageProps {
   }>;
 }
 
-export default async function JobPage({ params }: JobPageProps) {
-  const { jobId } = await params;
+export default async function JobPage(props: JobPageProps) {
+  const { jobId } = await props.params;
+  const jobIdNum = parseInt(jobId, 10);
+  if (isNaN(jobIdNum)) {
+    notFound();
+  }
+  const job = await getJob(jobIdNum);
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-4">Job Details</h1>
-      <div className="bg-card border rounded-lg p-6">
-        <p className="text-lg">
-          <span className="font-semibold">Job ID:</span> {jobId}
-        </p>
-      </div>
+    <div className="flex h-screen overflow-hidden">
+      <EquipmentSidebar jobId={jobIdNum} />
+      <main className="flex-1 overflow-auto bg-background flex flex-col">
+        <header className="border-b border-border px-6 py-4">
+          <h1 className="text-2xl font-bold text-foreground">{job.name}</h1>
+        </header>
+        <div className="flex-1">
+          {/* Main content area - rack drawing canvas will go here */}
+        </div>
+      </main>
     </div>
   );
 }

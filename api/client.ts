@@ -21,7 +21,8 @@ export async function apiFetch<T>(
 
   if (!res.ok) {
     const message = await res.text();
-    throw new Error(message || "Request failed");
+    const isDev = process.env.NODE_ENV !== "production";
+    throw new Error(isDev ? (message || "Request failed") : "Request failed");
   }
 
   const data = await res.json();
