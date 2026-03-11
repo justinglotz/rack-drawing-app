@@ -1,7 +1,7 @@
 "use client";
 
 import * as z from "zod";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "@tanstack/react-form-nextjs";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -27,6 +27,32 @@ export default function FlexUrlForm() {
   const router = useRouter();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const { mutate, isPending } = useImportFlexUrl();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const isOverlayVisible = isPending || isRedirecting;
+
+    if (isOverlayVisible) {
+      // Save the currently focused element before showing overlay
+      previousActiveElement.current = document.activeElement as HTMLElement;
+      // Focus the overlay to trap focus
+      overlayRef.current?.focus();
+    } else if (previousActiveElement.current) {
+      // Restore focus to the previously focused element
+      previousActiveElement.current.focus();
+      previousActiveElement.current = null;
+    }
+  }, [isPending, isRedirecting]);
+
+  // Trap focus within the overlay (prevent Tab from escaping)
+  const handleOverlayKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Tab") {
+      // Keep focus trapped on the overlay by preventing default and re-focusing
+      e.preventDefault();
+      overlayRef.current?.focus();
+    }
+  };
 
   const form = useForm({
     defaultValues: {
@@ -60,8 +86,12 @@ export default function FlexUrlForm() {
     <>
       {(isPending || isRedirecting) && (
         <div
+          ref={overlayRef}
+          tabIndex={-1}
+          onKeyDown={handleOverlayKeyDown}
           className="fixed inset-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200"
           role="dialog"
+          aria-modal="true"
           aria-labelledby="loading-message"
           aria-busy="true"
         >
@@ -73,7 +103,7 @@ export default function FlexUrlForm() {
           </div>
         </div>
       )}
-      <Card className="w-full sm:max-w-md">
+      <Card className="w-full sm:max-w-md" aria-hidden={isPending || isRedirecting}>
       <CardHeader>
         <CardTitle>Import Flex Data</CardTitle>
         <CardDescription>Import Data from Flex Pullsheet</CardDescription>
