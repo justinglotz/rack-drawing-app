@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sideSchema } from "./rackDrawingTypes";
 
 export const jobSchema = z.object({
   id: z.number(),
@@ -15,6 +16,7 @@ export const pullsheetItemSchema = z.object({
   id: z.number(),
   jobId: z.number(),
   equipmentCatalogId: z.number().nullish(),
+  genericEquipmentId: z.number().nullish(),
   rackDrawingId: z.number().nullish(),
   parentId: z.number().nullish(),
   name: z.string(),
@@ -25,7 +27,7 @@ export const pullsheetItemSchema = z.object({
   flexSection: z.string(),
   isFromPullsheet: z.boolean(),
   notes: z.string().nullish(),
-  side: z.string().nullish(),
+  side: sideSchema.nullish(),
   startPosition: z.number().nullish(),
   createdAt: z.string(),
   updatedAt: z.string(),

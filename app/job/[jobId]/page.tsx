@@ -1,6 +1,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import EquipmentSidebar from "@/components/equipment/EquipmentSidebar";
+import RackDrawingsView from "@/components/rack/RackDrawingsView";
 import { getJob } from "@/api/jobs";
 
 interface JobPageProps {
@@ -24,8 +25,8 @@ export default async function JobPage(props: JobPageProps) {
         <header className="border-b border-border px-6 py-4">
           <h1 className="text-2xl font-bold text-foreground">{job.name}</h1>
         </header>
-        <div className="flex-1">
-          {/* Main content area - rack drawing canvas will go here */}
+        <div className="flex-1 p-6 overflow-auto">
+          <RackDrawingsView jobId={jobIdNum} tourShow={job.name} />
         </div>
       </main>
     </div>
