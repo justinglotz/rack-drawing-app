@@ -31,8 +31,8 @@ export const placedItemSchema = z.object({
   name: z.string(),
   displayNameOverride: z.string().nullish(),
   rackUnits: z.number(),
-  side: sideSchema,
-  startPosition: z.number(),
+  side: sideSchema.nullish(),
+  startPosition: z.number().nullish(),
   category: z.string().nullish(),
 });
 

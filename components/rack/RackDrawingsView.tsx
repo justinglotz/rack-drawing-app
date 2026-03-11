@@ -12,11 +12,15 @@ interface RackDrawingsViewProps {
 }
 
 function toRackItem(item: PlacedItem): RackItem {
+  // Default unplaced items to FRONT/position 1
+  const side = item.side ?? "FRONT";
+  const startPosition = item.startPosition ?? 1;
+
   return {
     name: item.displayNameOverride || item.name,
-    startU: item.startPosition,
-    endU: item.startPosition + item.rackUnits - 1,
-    side: item.side,
+    startU: startPosition,
+    endU: startPosition + item.rackUnits - 1,
+    side,
     category: (item.category ?? "default") as
       | "power"
       | "wireless"
@@ -72,11 +76,11 @@ export default function RackDrawingsView({
   }
 
   const frontItems = activeRack.placedItems
-    .filter((item) => item.side.includes("FRONT"))
+    .filter((item) => (item.side ?? "FRONT").includes("FRONT"))
     .map(toRackItem);
 
   const backItems = activeRack.placedItems
-    .filter((item) => item.side.includes("BACK"))
+    .filter((item) => (item.side ?? "FRONT").includes("BACK"))
     .map(toRackItem);
 
   return (
