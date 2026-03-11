@@ -11,10 +11,9 @@ interface RackDrawingsViewProps {
   tourShow: string;
 }
 
-function toRackItem(item: PlacedItem): RackItem {
-  // Default unplaced items to FRONT/position 1
+function toRackItem(item: PlacedItem, defaultStartPosition?: number): RackItem {
   const side = item.side ?? "FRONT";
-  const startPosition = item.startPosition ?? 1;
+  const startPosition = item.startPosition ?? defaultStartPosition ?? 1;
 
   return {
     name: item.displayNameOverride || item.name,
@@ -29,6 +28,35 @@ function toRackItem(item: PlacedItem): RackItem {
       | "generic"
       | "default",
   };
+}
+
+function transformItemsWithPositioning(
+  items: PlacedItem[],
+  sideFilter: "FRONT" | "BACK"
+): RackItem[] {
+  const placed: RackItem[] = [];
+  const unplaced: Array<{ item: PlacedItem; position: number }> = [];
+
+  // Separate placed from unplaced and calculate unplaced positions
+  let currentUnplacedPos = 1;
+  for (const item of items) {
+    const side = item.side ?? "FRONT";
+    if (side.includes(sideFilter)) {
+      if (item.startPosition !== null && item.startPosition !== undefined) {
+        placed.push(toRackItem(item));
+      } else {
+        unplaced.push({ item, position: currentUnplacedPos });
+        currentUnplacedPos += item.rackUnits;
+      }
+    }
+  }
+
+  // Convert unplaced items using calculated positions
+  const unplacedRackItems = unplaced.map(({ item, position }) =>
+    toRackItem(item, position)
+  );
+
+  return [...placed, ...unplacedRackItems];
 }
 
 export default function RackDrawingsView({
@@ -75,13 +103,8 @@ export default function RackDrawingsView({
     return null;
   }
 
-  const frontItems = activeRack.placedItems
-    .filter((item) => (item.side ?? "FRONT").includes("FRONT"))
-    .map(toRackItem);
-
-  const backItems = activeRack.placedItems
-    .filter((item) => (item.side ?? "FRONT").includes("BACK"))
-    .map(toRackItem);
+  const frontItems = transformItemsWithPositioning(activeRack.placedItems, "FRONT");
+  const backItems = transformItemsWithPositioning(activeRack.placedItems, "BACK");
 
   return (
     <div className="space-y-6">
