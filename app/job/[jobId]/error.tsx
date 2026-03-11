@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 export default function JobError({
   error,
@@ -10,7 +11,13 @@ export default function JobError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    if (error) {
+      // Show user-facing error message via toast
+      const message = error.message || "Failed to load job. Please try again.";
+      toast.error(message, {
+        description: error.digest ? `Error ID: ${error.digest}` : undefined,
+      });
+    }
   }, [error]);
 
   return (
