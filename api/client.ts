@@ -20,9 +20,14 @@ export async function apiFetch<T>(
   });
 
   if (!res.ok) {
-    const message = await res.text();
+    const responseText = await res.text();
     const isDev = process.env.NODE_ENV !== "production";
-    throw new Error(isDev ? (message || "Request failed") : "Request failed");
+    const error = new Error(
+      isDev ? (responseText || "Request failed") : "Request failed"
+    ) as Error & { status: number; responseText?: string };
+    error.status = res.status;
+    error.responseText = responseText;
+    throw error;
   }
 
   const data = await res.json();
