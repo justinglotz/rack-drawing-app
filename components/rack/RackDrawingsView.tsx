@@ -114,7 +114,7 @@ export default function RackDrawingsView({
           {sortedRacks.map((rack) => (
             <Button
               key={rack.id}
-              variant={activeRackId === rack.id ? "default" : "ghost"}
+              variant={displayRackId === rack.id ? "default" : "ghost"}
               onClick={() => setActiveRackId(rack.id)}
               className="rounded-b-none"
             >

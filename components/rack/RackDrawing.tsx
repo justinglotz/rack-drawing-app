@@ -57,10 +57,32 @@ function NumberColumn({ rackSize }: { rackSize: number }) {
 function RackColumn({
   items,
   rackSize,
+  isDoubleWide = false,
 }: {
   items: RackItem[];
   rackSize: number;
+  isDoubleWide?: boolean;
 }) {
+  // Determine if item should be positioned in left or right lane
+  const getItemPosition = (
+    item: RackItem
+  ): { left: string; width: string } => {
+    if (!isDoubleWide) {
+      return { left: "0", width: "100%" };
+    }
+
+    // For double-wide racks, check if side specifies LEFT or RIGHT
+    if (item.side.includes("LEFT")) {
+      return { left: "0", width: "50%" };
+    }
+    if (item.side.includes("RIGHT")) {
+      return { left: "50%", width: "100%" };
+    }
+
+    // Default to full-width for sides that don't specify LEFT/RIGHT
+    return { left: "0", width: "100%" };
+  };
+
   return (
     <div className="relative" style={{ height: rackSize * ROW_HEIGHT }}>
       {Array.from({ length: rackSize }, (_, i) => (
@@ -75,14 +97,17 @@ function RackColumn({
       {items.map((item, idx) => {
         const span = item.endU - item.startU + 1;
         const colorClass = categoryColors[item.category ?? "default"];
+        const { left, width } = getItemPosition(item);
 
         return (
           <div
             key={idx}
-            className={`absolute left-0 right-0 ${colorClass} border border-foreground/30 flex items-center justify-center text-sm font-medium text-foreground/90 z-10`}
+            className={`absolute ${colorClass} border border-foreground/30 flex items-center justify-center text-sm font-medium text-foreground/90 z-10`}
             style={{
               top: (item.startU - 1) * ROW_HEIGHT,
               height: span * ROW_HEIGHT,
+              left,
+              width,
             }}
           >
             <span className={item.italic ? "italic text-muted-foreground" : ""}>
@@ -153,13 +178,13 @@ export default function RackDrawing({
           <NumberColumn rackSize={totalSpaces} />
         </div>
         <div>
-          <RackColumn items={frontItems} rackSize={totalSpaces} />
+          <RackColumn items={frontItems} rackSize={totalSpaces} isDoubleWide={isDoubleWide} />
         </div>
         <div className="border-l border-r border-rack-border">
           <NumberColumn rackSize={totalSpaces} />
         </div>
         <div>
-          <RackColumn items={backItems} rackSize={totalSpaces} />
+          <RackColumn items={backItems} rackSize={totalSpaces} isDoubleWide={isDoubleWide} />
         </div>
       </div>
 
