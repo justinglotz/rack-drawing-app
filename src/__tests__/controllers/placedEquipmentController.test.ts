@@ -6,6 +6,13 @@ const mockPrisma = {
   pullsheetItem: {
     findMany: jest.fn<any>(),
     update: jest.fn<any>(),
+    create: jest.fn<any>(),
+  },
+  genericEquipment: {
+    findUnique: jest.fn<any>(),
+  },
+  job: {
+    findUnique: jest.fn<any>(),
   },
 }
 
@@ -41,7 +48,7 @@ function makeRes(): Response & { _status: number; _json: unknown; _sent: boolean
 }
 
 // --- Dynamic import after mocks are registered ---
-const { getPlacedEquipment, moveEquipment, updateEquipmentName } = await import(
+const { getPlacedEquipment, moveEquipment, updateEquipmentName, getUnplacedItems, placeGenericEquipment } = await import(
   '../../controllers/placedEquipmentController.js'
 )
 
@@ -451,5 +458,153 @@ describe('Placed Equipment Controller', () => {
         data: { displayNameOverride: 'FOH Rack #1 (Main) - Custom & Modified!' },
       })
     })
+  })
+
+  describe('getUnplacedItems', () => {
+    it('returns 200 with all unplaced items for a specific job', async () => {
+      const mockJob = { id: 5, name: 'Concert Tour', flexPullsheetId: 'uuid-5' }
+      const mockUnplacedItems = [
+        {
+          id: 1,
+          jobId: 5,
+          name: 'Shure SM58',
+          rackUnits: 0,
+          rackDrawingId: null,
+          side: null,
+          startPosition: null,
+        },
+        {
+          id: 2,
+          jobId: 5,
+          name: 'Waves Server',
+          rackUnits: 2,
+          rackDrawingId: null,
+          side: null,
+          startPosition: null,
+        },
+      ]
+      mockPrisma.job.findUnique.mockResolvedValue(mockJob)
+      mockPrisma.pullsheetItem.findMany.mockResolvedValue(mockUnplacedItems)
+
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '5' }), res)
+
+      expect(res._status).toBe(200)
+      expect(res._json).toEqual(mockUnplacedItems)
+      expect(mockPrisma.job.findUnique).toHaveBeenCalledWith({
+        where: { id: 5 },
+      })
+      expect(mockPrisma.pullsheetItem.findMany).toHaveBeenCalled()
+    })
+
+    it('only includes items where jobId matches AND rackDrawingId = null', async () => {
+      const mockJob = { id: 5, name: 'Concert Tour', flexPullsheetId: 'uuid-5' }
+      mockPrisma.job.findUnique.mockResolvedValue(mockJob)
+      mockPrisma.pullsheetItem.findMany.mockResolvedValue([])
+
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '5' }), res)
+
+      expect(mockPrisma.pullsheetItem.findMany).toHaveBeenCalledWith({
+        where: {
+          jobId: 5,
+          rackDrawingId: null,
+        },
+      })
+    })
+
+    it('excludes placed items (where rackDrawingId is not null)', async () => {
+      const mockJob = { id: 5, name: 'Concert Tour', flexPullsheetId: 'uuid-5' }
+      const mockUnplacedItems = [
+        {
+          id: 1,
+          jobId: 5,
+          name: 'Unplaced Mic',
+          rackUnits: 0,
+          rackDrawingId: null,
+        },
+      ]
+      mockPrisma.job.findUnique.mockResolvedValue(mockJob)
+      mockPrisma.pullsheetItem.findMany.mockResolvedValue(mockUnplacedItems)
+
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '5' }), res)
+
+      expect(mockPrisma.pullsheetItem.findMany).toHaveBeenCalledWith({
+        where: {
+          jobId: 5,
+          rackDrawingId: null,
+        },
+      })
+    })
+
+    it('returns empty array when job has no unplaced items', async () => {
+      const mockJob = { id: 5, name: 'Concert Tour', flexPullsheetId: 'uuid-5' }
+      mockPrisma.job.findUnique.mockResolvedValue(mockJob)
+      mockPrisma.pullsheetItem.findMany.mockResolvedValue([])
+
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '5' }), res)
+
+      expect(res._status).toBe(200)
+      expect(res._json).toEqual([])
+    })
+
+    it('returns empty array when job has only placed items', async () => {
+      const mockJob = { id: 5, name: 'Concert Tour', flexPullsheetId: 'uuid-5' }
+      mockPrisma.job.findUnique.mockResolvedValue(mockJob)
+      mockPrisma.pullsheetItem.findMany.mockResolvedValue([])
+
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '5' }), res)
+
+      expect(res._status).toBe(200)
+      expect(res._json).toEqual([])
+    })
+
+    it('rejects non-numeric jobId with 400 error', async () => {
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: 'abc' }), res)
+
+      expect(res._status).toBe(400)
+      expect(res._json).toEqual({ error: 'Invalid job ID' })
+      expect(mockPrisma.job.findUnique).not.toHaveBeenCalled()
+      expect(mockPrisma.pullsheetItem.findMany).not.toHaveBeenCalled()
+    })
+
+    it('rejects invalid jobId format with 400 error', async () => {
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '1.5' }), res)
+
+      expect(res._status).toBe(400)
+      expect(res._json).toEqual({ error: 'Invalid job ID' })
+      expect(mockPrisma.job.findUnique).not.toHaveBeenCalled()
+      expect(mockPrisma.pullsheetItem.findMany).not.toHaveBeenCalled()
+    })
+
+    it('returns 404 for non-existent jobId', async () => {
+      mockPrisma.job.findUnique.mockResolvedValue(null)
+
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '9999' }), res)
+
+      expect(res._status).toBe(404)
+      expect(res._json).toEqual({ error: 'Job not found' })
+      expect(mockPrisma.pullsheetItem.findMany).not.toHaveBeenCalled()
+    })
+
+    it('returns 500 on database error', async () => {
+      mockPrisma.job.findUnique.mockRejectedValue(new Error('Database error'))
+
+      const res = makeRes()
+      await getUnplacedItems(makeReq({}, { jobId: '5' }), res)
+
+      expect(res._status).toBe(500)
+      expect(res._json).toEqual({ error: 'Failed to fetch unplaced items' })
+    })
+  })
+
+  describe('placeGenericEquipment', () => {
+    // Tests will go here
   })
 })

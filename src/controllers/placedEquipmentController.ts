@@ -97,6 +97,16 @@ export const getUnplacedItems = async (req: Request, res: Response) => {
       return;
     }
 
+    // Check if job exists
+    const job = await prisma.job.findUnique({
+      where: { id },
+    });
+
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+
     const unplacedItems = await prisma.pullsheetItem.findMany({
       where: {
         jobId: id,
