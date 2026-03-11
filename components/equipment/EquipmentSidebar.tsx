@@ -26,6 +26,7 @@ function SectionGroup({ section }: { section: EquipmentSection }) {
     <div>
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-secondary/50 transition-colors"
       >
         {open ? (
@@ -98,7 +99,7 @@ export default function EquipmentSidebar({ jobId }: EquipmentSidebarProps) {
   }
 
   const pullsheetSections: EquipmentSection[] = Array.from(
-    groupedPullsheetItems.entries()
+    groupedPullsheetItems.entries(),
   ).map(([label, items]) => ({ label, items }));
 
   // Group generic items by category
@@ -123,7 +124,7 @@ export default function EquipmentSidebar({ jobId }: EquipmentSidebarProps) {
   }
 
   const genericSections: EquipmentSection[] = Array.from(
-    groupedGenericItems.entries()
+    groupedGenericItems.entries(),
   ).map(([label, items]) => ({ label, items }));
 
   return (
