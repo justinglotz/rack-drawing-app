@@ -103,7 +103,7 @@ export const importPullsheet = async (req: Request, res: Response) => {
     }
 
     // 4. Upsert EquipmentCatalog entries efficiently
-    const uniqueResourceIds = [...new Set(allEquipment.map(item => item.flexResourceId))];
+    const uniqueResourceIds = [...new Set(allEquipment.map(item => item.flexResourceId).filter(id => id !== null))];
 
     const existingCatalogItems = await prisma.equipmentCatalog.findMany({
       where: { flexResourceId: { in: uniqueResourceIds } },
@@ -147,20 +147,23 @@ export const importPullsheet = async (req: Request, res: Response) => {
     const children = allEquipment.filter(item => item.parentflexResourceId !== null);
 
     const parentPromises = parents.map(async (item) => {
-      const pullsheetItem = await prisma.pullsheetItem.create({
-        data: {
-          jobId: job.id,
-          equipmentCatalogId: catalogIdMap.get(item.flexResourceId) ?? null,
-          displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
-          rackDrawingId: item.rackDrawingId,
-          flexResourceId: item.flexResourceId,
-          flexSection: item.flexSection,
-          name: item.name,
-          rackUnits: item.rackUnits,
-          quantity: item.quantity,
-          notes: item.notes,
-        },
-      });
+      const data: any = {
+        name: item.name,
+        rackUnits: item.rackUnits,
+        quantity: item.quantity,
+        flexResourceId: item.flexResourceId,
+        flexSection: item.flexSection,
+        notes: item.notes,
+        displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
+        job: { connect: { id: job.id } },
+        rackDrawing: item.rackDrawingId ? { connect: { id: item.rackDrawingId } } : undefined,
+      };
+
+      if (item.flexResourceId && catalogIdMap.has(item.flexResourceId)) {
+        data.equipmentCatalog = { connect: { flexResourceId: item.flexResourceId } };
+      }
+
+      const pullsheetItem = await prisma.pullsheetItem.create({ data });
       return { flexResourceId: item.flexResourceId, id: pullsheetItem.id };
     });
 
@@ -168,21 +171,28 @@ export const importPullsheet = async (req: Request, res: Response) => {
     const itemIdMap = new Map(parentResults.map(p => [p.flexResourceId, p.id]));
 
     if (children.length > 0) {
-      await prisma.pullsheetItem.createMany({
-        data: children.map(item => ({
-          jobId: job.id,
-          equipmentCatalogId: catalogIdMap.get(item.flexResourceId) ?? null,
-          displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
-          rackDrawingId: item.rackDrawingId,
-          parentId: itemIdMap.get(item.parentflexResourceId!) ?? null,
-          flexResourceId: item.flexResourceId,
-          flexSection: item.flexSection,
-          name: item.name,
-          rackUnits: item.rackUnits,
-          quantity: item.quantity,
-          notes: item.notes,
-        }))
-      });
+      await Promise.all(
+        children.map(item => {
+          const data: any = {
+            name: item.name,
+            rackUnits: item.rackUnits,
+            quantity: item.quantity,
+            flexResourceId: item.flexResourceId,
+            flexSection: item.flexSection,
+            notes: item.notes,
+            displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
+            job: { connect: { id: job.id } },
+            parent: { connect: { id: itemIdMap.get(item.parentflexResourceId!) ?? undefined } },
+            rackDrawing: item.rackDrawingId ? { connect: { id: item.rackDrawingId } } : undefined,
+          };
+
+          if (item.flexResourceId && catalogIdMap.has(item.flexResourceId)) {
+            data.equipmentCatalog = { connect: { flexResourceId: item.flexResourceId } };
+          }
+
+          return prisma.pullsheetItem.create({ data });
+        })
+      );
     }
 
     res.status(201).json({

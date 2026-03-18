@@ -249,13 +249,13 @@ describe('importPullsheet', () => {
     const res = makeRes()
     await importPullsheet(makeReq({ flexUrl: VALID_FLEX_URL }), res)
 
-    // Rack equipment should have rackDrawingId: 10
+    // Rack equipment should have rackDrawing connected to id 10
     const rackItemCall = mockPrisma.pullsheetItem.create.mock.calls[0]![0] as any
-    expect(rackItemCall.data.rackDrawingId).toBe(10)
+    expect(rackItemCall.data.rackDrawing).toEqual({ connect: { id: 10 } })
 
-    // Loose equipment should have rackDrawingId: null
+    // Loose equipment should have rackDrawing undefined (not connected)
     const looseItemCall = mockPrisma.pullsheetItem.create.mock.calls[1]![0] as any
-    expect(looseItemCall.data.rackDrawingId).toBeNull()
+    expect(looseItemCall.data.rackDrawing).toBeUndefined()
   })
 
   it('skips catalog createMany when all items already exist', async () => {
@@ -339,12 +339,11 @@ describe('importPullsheet', () => {
 
     expect(res._status).toBe(201)
 
-    // Children should be created via createMany with parentId pointing to the parent
-    expect(mockPrisma.pullsheetItem.createMany).toHaveBeenCalledTimes(1)
-    const createManyArg = mockPrisma.pullsheetItem.createMany.mock.calls[0]![0] as any
-    expect(createManyArg.data).toHaveLength(1)
-    expect(createManyArg.data[0].name).toBe('Input Card')
-    expect(createManyArg.data[0].parentId).toBe(500)
+    // Children should be created via individual create calls (not createMany) with parent connection
+    expect(mockPrisma.pullsheetItem.create).toHaveBeenCalledTimes(2)
+    const childCallArg = mockPrisma.pullsheetItem.create.mock.calls[1]![0] as any
+    expect(childCallArg.data.name).toBe('Input Card')
+    expect(childCallArg.data.parent).toEqual({ connect: { id: 500 } })
   })
 
   it('maps equipment to the correct rack when multiple racks exist', async () => {
@@ -417,10 +416,10 @@ describe('importPullsheet', () => {
 
     // FOH equipment → rack 10, MON equipment → rack 20
     const fohItemCall = mockPrisma.pullsheetItem.create.mock.calls[0]![0] as any
-    expect(fohItemCall.data.rackDrawingId).toBe(10)
+    expect(fohItemCall.data.rackDrawing).toEqual({ connect: { id: 10 } })
 
     const monItemCall = mockPrisma.pullsheetItem.create.mock.calls[1]![0] as any
-    expect(monItemCall.data.rackDrawingId).toBe(20)
+    expect(monItemCall.data.rackDrawing).toEqual({ connect: { id: 20 } })
   })
 
   it('handles an empty pullsheet with no racks and no equipment', async () => {
