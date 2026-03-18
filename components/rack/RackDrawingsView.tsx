@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRackDrawings } from "@/hooks/useRackDrawings";
+import { useRackDrawings, useUpdateRackName } from "@/hooks/useRackDrawings";
 import { PlacedItem } from "@/types/rackDrawingTypes";
 import RackDrawing, { RackItem } from "./RackDrawing";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ function toRackItem(item: PlacedItem, defaultStartPosition?: number): RackItem {
 
 function transformItemsWithPositioning(
   items: PlacedItem[],
-  sideFilter: "FRONT" | "BACK"
+  sideFilter: "FRONT" | "BACK",
 ): RackItem[] {
   const placed: RackItem[] = [];
   const unplaced: Array<{ item: PlacedItem; position: number }> = [];
@@ -53,7 +53,7 @@ function transformItemsWithPositioning(
 
   // Convert unplaced items using calculated positions
   const unplacedRackItems = unplaced.map(({ item, position }) =>
-    toRackItem(item, position)
+    toRackItem(item, position),
   );
 
   return [...placed, ...unplacedRackItems];
@@ -64,6 +64,7 @@ export default function RackDrawingsView({
   tourShow,
 }: RackDrawingsViewProps) {
   const { data: racks, isLoading, error } = useRackDrawings(jobId);
+  const updateRackNameMutation = useUpdateRackName(jobId);
   const [activeRackId, setActiveRackId] = useState<number | null>(null);
 
   const sortedRacks = useMemo(() => {
@@ -80,6 +81,7 @@ export default function RackDrawingsView({
   }
 
   if (error) {
+    console.log(error);
     return (
       <div className="flex items-center justify-center py-12">
         <p className="text-destructive">Failed to load rack drawings</p>
@@ -103,8 +105,13 @@ export default function RackDrawingsView({
     return null;
   }
 
-  const frontItems = transformItemsWithPositioning(activeRack.placedItems, "FRONT");
-  const backItems = transformItemsWithPositioning(activeRack.placedItems, "BACK");
+  // Filter out items with 0 RU (cables, docs, etc.) - they shouldn't render in the rack
+  const itemsWithRU = activeRack.placedItems.filter(
+    (item) => item.rackUnits > 0,
+  );
+
+  const frontItems = transformItemsWithPositioning(itemsWithRU, "FRONT");
+  const backItems = transformItemsWithPositioning(itemsWithRU, "BACK");
 
   return (
     <div className="space-y-6">
@@ -133,6 +140,10 @@ export default function RackDrawingsView({
         frontItems={frontItems}
         backItems={backItems}
         notes={activeRack.notes ?? undefined}
+        rackId={activeRack.id}
+        onNameChange={(newName) =>
+          updateRackNameMutation.mutateAsync({ rackId: activeRack.id, name: newName })
+        }
       />
     </div>
   );

@@ -1,3 +1,5 @@
+import { useState, useRef, useEffect } from "react";
+import { Pencil, Check, X } from "lucide-react";
 import type { Side } from "@/types/rackDrawingTypes";
 
 export interface RackItem {
@@ -23,6 +25,8 @@ export interface RackDrawingProps {
   frontItems: RackItem[];
   backItems: RackItem[];
   notes?: string;
+  rackId?: number;
+  onNameChange?: (newName: string) => Promise<unknown>;
 }
 
 const ROW_HEIGHT = 32;
@@ -128,7 +132,52 @@ export default function RackDrawing({
   frontItems,
   backItems,
   notes,
+  rackId,
+  onNameChange,
 }: RackDrawingProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(name);
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setEditName(name);
+  }, [name]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = async () => {
+    if (!editName.trim() || editName === name || !onNameChange) {
+      setIsEditing(false);
+      setEditName(name);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onNameChange(editName.trim());
+      setIsEditing(false);
+    } catch {
+      setEditName(name);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      setEditName(name);
+    }
+  };
+
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden shadow-lg max-w-4xl print:shadow-none">
       {/* Header */}
@@ -142,13 +191,55 @@ export default function RackDrawing({
             Rack
           </div>
         </div>
-        <div className="p-5">
+        <div className="p-5 group">
           <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
             Rack
           </div>
-          <div className="text-base font-semibold text-primary mt-1">
-            {name}
-          </div>
+          {isEditing ? (
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isSaving}
+                className="flex-1 px-2 py-1 bg-muted border border-border rounded text-base font-semibold text-foreground disabled:opacity-50"
+              />
+              <button
+                onClick={handleSave}
+                disabled={isSaving || !editName.trim() || editName === name}
+                className="p-1.5 rounded-full hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                title="Save"
+              >
+                <Check className="h-4 w-4 text-green-600" />
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditName(name);
+                }}
+                disabled={isSaving}
+                className="p-1.5 rounded-full hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                title="Cancel"
+              >
+                <X className="h-4 w-4 text-destructive" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 mt-1">
+              <div className="text-base font-semibold text-primary">{name}</div>
+              {onNameChange && rackId && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted print:hidden"
+                  title="Rename rack"
+                >
+                  <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
