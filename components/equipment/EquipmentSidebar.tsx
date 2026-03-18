@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUnplacedItems } from "@/hooks/usePullsheetItems";
 import { useGenericEquipment } from "@/hooks/useGenericEquipment";
 
@@ -12,6 +12,8 @@ interface EquipmentDisplayItem {
   displayName?: string | null;
   rackUnits: number;
   quantity: number;
+  parentId?: number | null;
+  children?: EquipmentDisplayItem[];
 }
 
 interface EquipmentSection {
@@ -19,8 +21,80 @@ interface EquipmentSection {
   items: EquipmentDisplayItem[];
 }
 
+function ItemRow({
+  item,
+  depth = 0,
+  hoveredItemId,
+  hoveredItemParentId,
+  onHoverChange,
+}: {
+  item: EquipmentDisplayItem;
+  depth?: number;
+  hoveredItemId: number | null;
+  hoveredItemParentId: number | null;
+  onHoverChange: (itemId: number | null, parentId: number | null) => void;
+}) {
+  const hasChildren = item.children && item.children.length > 0;
+
+  // Check if this item or any of its children/parents is hovered
+  const isRelatedToHovered = (hoveredId: number | null, hoveredParentId: number | null): boolean => {
+    if (!hoveredId) return false;
+    if (item.id === hoveredId) return true;
+    if (item.parentId === hoveredId) return true;
+    // Highlight siblings (items with same parent as hovered item)
+    if (hoveredParentId !== null && item.parentId === hoveredParentId) return true;
+    if (hasChildren) {
+      return item.children!.some((child) => child.id === hoveredId);
+    }
+    return false;
+  };
+
+  const isHighlighted = isRelatedToHovered(hoveredItemId, hoveredItemParentId);
+
+  return (
+    <>
+      <div
+        style={{
+          paddingLeft: `${12 + depth * 16}px`,
+          ...(depth > 0 && {
+            borderLeft: "2px solid hsl(var(--primary) / 0.2)",
+            borderRadius: "0",
+          }),
+        }}
+        className={`flex items-center gap-2 py-1.5 mx-1 rounded cursor-grab text-sm text-foreground transition-colors group ${
+          isHighlighted ? "bg-primary/10" : "hover:bg-secondary/70"
+        }`}
+        onMouseEnter={() => onHoverChange(item.id, item.parentId ?? null)}
+        onMouseLeave={() => onHoverChange(null, null)}
+      >
+        <span className="flex-1">{item.displayName || item.name}</span>
+        <span className="text-[10px] text-muted-foreground font-mono">
+          x{item.quantity}
+        </span>
+        {item.rackUnits > 0 && (
+          <span className="text-[10px] text-muted-foreground font-mono">
+            {item.rackUnits}U
+          </span>
+        )}
+      </div>
+      {item.children?.map((child) => (
+        <ItemRow
+          key={child.id}
+          item={child}
+          depth={depth + 1}
+          hoveredItemId={hoveredItemId}
+          hoveredItemParentId={hoveredItemParentId}
+          onHoverChange={onHoverChange}
+        />
+      ))}
+    </>
+  );
+}
+
 function SectionGroup({ section }: { section: EquipmentSection }) {
   const [open, setOpen] = useState(false);
+  const [hoveredItemId, setHoveredItemId] = useState<number | null>(null);
+  const [hoveredItemParentId, setHoveredItemParentId] = useState<number | null>(null);
 
   return (
     <div>
@@ -42,18 +116,16 @@ function SectionGroup({ section }: { section: EquipmentSection }) {
       {open && (
         <div className="pb-1">
           {section.items.map((item) => (
-            <div
+            <ItemRow
               key={item.id}
-              className="flex items-center gap-2 px-3 py-1.5 mx-1 rounded cursor-grab text-sm text-foreground hover:bg-secondary/70 transition-colors group"
-            >
-              <span className="flex-1">{item.displayName || item.name}</span>
-              <span className="text-[10px] text-muted-foreground font-mono">
-                x{item.quantity}
-              </span>
-              <span className="text-[10px] text-muted-foreground font-mono">
-                {item.rackUnits}U
-              </span>
-            </div>
+              item={item}
+              hoveredItemId={hoveredItemId}
+              hoveredItemParentId={hoveredItemParentId}
+              onHoverChange={(itemId, parentId) => {
+                setHoveredItemId(itemId);
+                setHoveredItemParentId(parentId);
+              }}
+            />
           ))}
         </div>
       )}
@@ -74,25 +146,57 @@ export default function EquipmentSidebar({ jobId }: EquipmentSidebarProps) {
     error: genericError,
   } = useGenericEquipment();
 
-  // Group pullsheet items by flexSection, filtering by rackUnits if needed
+  // Log errors for debugging
+  useEffect(() => {
+    if (error) {
+      console.log("Pullsheet items error:", error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (genericError) {
+      console.log("Generic equipment error:", genericError);
+    }
+  }, [genericError]);
+
+  // Build pullsheet items with parent-child hierarchy
   const groupedPullsheetItems = new Map<string, EquipmentDisplayItem[]>();
   if (pullsheetItems) {
+    // Map all items, track by ID
+    const itemMap = new Map<number, EquipmentDisplayItem>();
     pullsheetItems.forEach((item) => {
-      // Filter: show items with rackUnits > 0, or all items if showAllItems is true
-      if (showAllItems || item.rackUnits > 0) {
-        if (!groupedPullsheetItems.has(item.flexSection)) {
-          groupedPullsheetItems.set(item.flexSection, []);
+      itemMap.set(item.id, {
+        id: item.id,
+        name: item.name,
+        displayName: item.displayNameOverride,
+        rackUnits: item.rackUnits,
+        quantity: item.quantity,
+        parentId: item.parentId,
+        children: [],
+      });
+    });
+
+    // Assign children to parents
+    pullsheetItems.forEach((item) => {
+      if (item.parentId && itemMap.has(item.parentId)) {
+        const parent = itemMap.get(item.parentId);
+        const child = itemMap.get(item.id);
+        if (child) {
+          parent?.children?.push(child);
         }
-        const items = groupedPullsheetItems.get(item.flexSection);
-        if (items) {
-          // Map PullsheetItem to EquipmentDisplayItem
-          items.push({
-            id: item.id,
-            name: item.name,
-            displayName: item.displayNameOverride,
-            rackUnits: item.rackUnits,
-            quantity: item.quantity,
-          });
+      }
+    });
+
+    // Collect root items that pass the filter and group by flexSection
+    pullsheetItems.forEach((item) => {
+      if (!item.parentId && (showAllItems || item.rackUnits > 0)) {
+        const displayItem = itemMap.get(item.id);
+        if (displayItem) {
+          const section = item.flexSection;
+          if (!groupedPullsheetItems.has(section)) {
+            groupedPullsheetItems.set(section, []);
+          }
+          groupedPullsheetItems.get(section)?.push(displayItem);
         }
       }
     });
