@@ -30,7 +30,7 @@ export const placedItemSchema = z.object({
   id: z.number().int().positive(),
   name: z.string(),
   displayNameOverride: z.string().nullish(),
-  rackUnits: z.number().int().positive(),
+  rackUnits: z.number().int().min(0),
   side: sideSchema.nullish(),
   startPosition: z.number().int().min(1).nullish(),
   category: z.string().nullish(),
