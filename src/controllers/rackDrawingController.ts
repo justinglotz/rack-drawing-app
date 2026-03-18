@@ -80,6 +80,41 @@ export const getRackDrawingsForJob = async (req: Request, res: Response) => {
   }
 }
 
+export const updateRackDrawingName = async (req: Request, res: Response): Promise<void> => {
+  const jobId = Number(req.params.jobId);
+  const rackId = Number(req.params.rackId);
+
+  if (!Number.isInteger(jobId) || !Number.isInteger(rackId)) {
+    res.status(400).json({ error: 'Invalid job ID or rack ID' });
+    return;
+  }
+
+  const { name } = req.body;
+  if (typeof name !== 'string' || !name.trim()) {
+    res.status(400).json({ error: 'name is required and must be a non-empty string' });
+    return;
+  }
+
+  try {
+    // Verify rack exists and belongs to the job
+    const rack = await prisma.rackDrawing.findFirst({
+      where: { id: rackId, jobId },
+    });
+    if (!rack) {
+      res.status(404).json({ error: 'Rack drawing not found' });
+      return;
+    }
+
+    const updated = await prisma.rackDrawing.update({
+      where: { id: rackId },
+      data: { name: name.trim() },
+    });
+    res.status(200).json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update rack drawing' });
+  }
+}
+
 export const deleteRackDrawing = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
