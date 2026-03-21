@@ -86,11 +86,10 @@ function DraggableRackItem({
   item: RackItem;
   isDoubleWide: boolean;
 }) {
-  const { ref } = useDraggable({ id: item.id }); // unique per item
+  const { ref } = useDraggable({ id: item.id });
   const span = item.endU - item.startU + 1;
   const colorClass = categoryColors[item.category ?? "default"];
   const { left, width } = getItemPosition(item, isDoubleWide);
-  // move getItemPosition here or pass result as prop
 
   return (
     <div
