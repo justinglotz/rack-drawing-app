@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import type { Side } from "@/types/rackDrawingTypes";
+import { useDraggable, useDroppable } from "@dnd-kit/react";
 
 export interface RackItem {
+  id: number;
   name: string;
   startU: number;
   endU: number;
@@ -26,6 +28,9 @@ export interface RackDrawingProps {
   backItems: RackItem[];
   notes?: string;
   rackId?: number;
+  draggedItemSize?: number | null;
+  hoveredU?: number | null;
+  hoveredSide?: Side | null;
   onNameChange?: (newName: string) => Promise<unknown>;
 }
 
@@ -39,6 +44,22 @@ const categoryColors: Record<string, string> = {
   generic: "bg-rack-item-generic",
   default: "bg-rack-item-default",
 };
+
+function getItemPosition(
+  item: RackItem,
+  isDoubleWide: boolean,
+): { left: string; width: string } {
+  if (!isDoubleWide) {
+    return { left: "0", width: "100%" };
+  }
+  if (item.side.includes("LEFT")) {
+    return { left: "0", width: "50%" };
+  }
+  if (item.side.includes("RIGHT")) {
+    return { left: "50%", width: "100%" };
+  }
+  return { left: "0", width: "100%" };
+}
 
 function NumberColumn({ rackSize }: { rackSize: number }) {
   return (
@@ -58,68 +79,92 @@ function NumberColumn({ rackSize }: { rackSize: number }) {
   );
 }
 
+function DraggableRackItem({
+  item,
+  isDoubleWide,
+}: {
+  item: RackItem;
+  isDoubleWide: boolean;
+}) {
+  const { ref } = useDraggable({ id: item.id }); // unique per item
+  const span = item.endU - item.startU + 1;
+  const colorClass = categoryColors[item.category ?? "default"];
+  const { left, width } = getItemPosition(item, isDoubleWide);
+  // move getItemPosition here or pass result as prop
+
+  return (
+    <div
+      ref={ref}
+      className={`absolute ${colorClass} border border-foreground/30 flex items-center justify-center text-sm font-medium text-foreground/90 z-10`}
+      style={{
+        top: (item.startU - 1) * ROW_HEIGHT,
+        height: span * ROW_HEIGHT,
+        left,
+        width,
+      }}
+    >
+      <span className={item.italic ? "italic text-muted-foreground" : ""}>
+        {item.name}
+      </span>
+    </div>
+  );
+}
+
+function DroppableRow({ index, side }: { index: number; side: Side }) {
+  const { ref } = useDroppable({
+    id: `${side}-${index + 1}`,
+  });
+
+  return (
+    <div
+      ref={ref}
+      className={`absolute left-0 right-0 border-b border-rack-border ${
+        index % 2 === 0 ? "bg-rack-row" : "bg-rack-row-alt"
+      }`}
+      style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
+    />
+  );
+}
+
 function RackColumn({
   items,
   rackSize,
   isDoubleWide = false,
+  side,
+  draggedItemSize,
+  hoveredU,
 }: {
   items: RackItem[];
   rackSize: number;
   isDoubleWide?: boolean;
+  side: Side;
+  draggedItemSize?: number | null;
+  hoveredU?: number | null;
 }) {
   // Determine if item should be positioned in left or right lane
-  const getItemPosition = (
-    item: RackItem
-  ): { left: string; width: string } => {
-    if (!isDoubleWide) {
-      return { left: "0", width: "100%" };
-    }
-
-    // For double-wide racks, check if side specifies LEFT or RIGHT
-    if (item.side.includes("LEFT")) {
-      return { left: "0", width: "50%" };
-    }
-    if (item.side.includes("RIGHT")) {
-      return { left: "50%", width: "100%" };
-    }
-
-    // Default to full-width for sides that don't specify LEFT/RIGHT
-    return { left: "0", width: "100%" };
-  };
+  const previewStart = hoveredU ?? null;
+  const previewEnd =
+    previewStart && draggedItemSize
+      ? Math.min(previewStart + draggedItemSize - 1, rackSize)
+      : null;
 
   return (
     <div className="relative" style={{ height: rackSize * ROW_HEIGHT }}>
       {Array.from({ length: rackSize }, (_, i) => (
-        <div
-          key={i}
-          className={`absolute left-0 right-0 border-b border-rack-border ${
-            i % 2 === 0 ? "bg-rack-row" : "bg-rack-row-alt"
-          }`}
-          style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
-        />
+        <DroppableRow key={i} index={i} side={side} />
       ))}
-      {items.map((item, idx) => {
-        const span = item.endU - item.startU + 1;
-        const colorClass = categoryColors[item.category ?? "default"];
-        const { left, width } = getItemPosition(item);
-
-        return (
-          <div
-            key={idx}
-            className={`absolute ${colorClass} border border-foreground/30 flex items-center justify-center text-sm font-medium text-foreground/90 z-10`}
-            style={{
-              top: (item.startU - 1) * ROW_HEIGHT,
-              height: span * ROW_HEIGHT,
-              left,
-              width,
-            }}
-          >
-            <span className={item.italic ? "italic text-muted-foreground" : ""}>
-              {item.name}
-            </span>
-          </div>
-        );
-      })}
+      {previewStart && previewEnd && (
+        <div
+          className="absolute left-0 right-0 bg-rack-drop-target z-20 pointer-events-none"
+          style={{
+            top: (previewStart - 1) * ROW_HEIGHT,
+            height: (previewEnd - previewStart + 1) * ROW_HEIGHT,
+          }}
+        />
+      )}
+      {items.map((item, idx) => (
+        <DraggableRackItem key={idx} item={item} isDoubleWide={isDoubleWide} />
+      ))}
     </div>
   );
 }
@@ -134,6 +179,9 @@ export default function RackDrawing({
   notes,
   rackId,
   onNameChange,
+  draggedItemSize,
+  hoveredU,
+  hoveredSide,
 }: RackDrawingProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(name);
@@ -269,13 +317,27 @@ export default function RackDrawing({
           <NumberColumn rackSize={totalSpaces} />
         </div>
         <div>
-          <RackColumn items={frontItems} rackSize={totalSpaces} isDoubleWide={isDoubleWide} />
+          <RackColumn
+            items={frontItems}
+            rackSize={totalSpaces}
+            isDoubleWide={isDoubleWide}
+            side="FRONT"
+            draggedItemSize={draggedItemSize}
+            hoveredU={hoveredSide === "FRONT" ? hoveredU : null}
+          />
         </div>
         <div className="border-l border-r border-rack-border">
           <NumberColumn rackSize={totalSpaces} />
         </div>
         <div>
-          <RackColumn items={backItems} rackSize={totalSpaces} isDoubleWide={isDoubleWide} />
+          <RackColumn
+            items={backItems}
+            rackSize={totalSpaces}
+            isDoubleWide={isDoubleWide}
+            side="BACK"
+            draggedItemSize={draggedItemSize}
+            hoveredU={hoveredSide === "BACK" ? hoveredU : null}
+          />
         </div>
       </div>
 

@@ -5,7 +5,8 @@ import { useRackDrawings, useUpdateRackName } from "@/hooks/useRackDrawings";
 import { PlacedItem } from "@/types/rackDrawingTypes";
 import RackDrawing, { RackItem } from "./RackDrawing";
 import { Button } from "@/components/ui/button";
-
+import { DragDropProvider } from "@dnd-kit/react";
+import type { Side } from "@/types/rackDrawingTypes";
 interface RackDrawingsViewProps {
   jobId: number;
   tourShow: string;
@@ -16,6 +17,7 @@ function toRackItem(item: PlacedItem, defaultStartPosition?: number): RackItem {
   const startPosition = item.startPosition ?? defaultStartPosition ?? 1;
 
   return {
+    id: item.id,
     name: item.displayNameOverride || item.name,
     startU: startPosition,
     endU: startPosition + item.rackUnits - 1,
@@ -66,6 +68,10 @@ export default function RackDrawingsView({
   const { data: racks, isLoading, error } = useRackDrawings(jobId);
   const updateRackNameMutation = useUpdateRackName(jobId);
   const [activeRackId, setActiveRackId] = useState<number | null>(null);
+  const [dragState, setDragState] = useState<{
+    itemId: number | null;
+    dropId: string | null;
+  }>({ itemId: null, dropId: null });
 
   const sortedRacks = useMemo(() => {
     if (!racks) return [];
@@ -112,39 +118,65 @@ export default function RackDrawingsView({
 
   const frontItems = transformItemsWithPositioning(itemsWithRU, "FRONT");
   const backItems = transformItemsWithPositioning(itemsWithRU, "BACK");
+  const allItems = [...frontItems, ...backItems];
+  const draggedItem = allItems.find((item) => item.id === dragState.itemId);
+  const draggedItemSize = draggedItem
+    ? draggedItem.endU - draggedItem.startU + 1
+    : null;
+
+  const [hoveredSide, hoveredUStr] = dragState.dropId?.split("-") ?? [];
+  const hoveredU = hoveredUStr ? parseInt(hoveredUStr) : null;
 
   return (
-    <div className="space-y-6">
-      {/* Tabs */}
-      {sortedRacks.length > 1 && (
-        <div className="flex gap-2 border-b border-border">
-          {sortedRacks.map((rack) => (
-            <Button
-              key={rack.id}
-              variant={displayRackId === rack.id ? "default" : "ghost"}
-              onClick={() => setActiveRackId(rack.id)}
-              className="rounded-b-none"
-            >
-              {rack.name}
-            </Button>
-          ))}
-        </div>
-      )}
+    <DragDropProvider
+      onDragOver={({ operation }) => {
+        setDragState({
+          itemId: (operation.source?.id as number) ?? null,
+          dropId: (operation.target?.id as string) ?? null,
+        });
+      }}
+      onDragEnd={() => {
+        setDragState({ itemId: null, dropId: null });
+      }}
+    >
+      <div className="space-y-6">
+        {/* Tabs */}
+        {sortedRacks.length > 1 && (
+          <div className="flex gap-2 border-b border-border">
+            {sortedRacks.map((rack) => (
+              <Button
+                key={rack.id}
+                variant={displayRackId === rack.id ? "default" : "ghost"}
+                onClick={() => setActiveRackId(rack.id)}
+                className="rounded-b-none"
+              >
+                {rack.name}
+              </Button>
+            ))}
+          </div>
+        )}
 
-      {/* Rack Drawing */}
-      <RackDrawing
-        name={activeRack.name}
-        totalSpaces={activeRack.totalSpaces}
-        isDoubleWide={activeRack.isDoubleWide}
-        tourShow={tourShow}
-        frontItems={frontItems}
-        backItems={backItems}
-        notes={activeRack.notes ?? undefined}
-        rackId={activeRack.id}
-        onNameChange={(newName) =>
-          updateRackNameMutation.mutateAsync({ rackId: activeRack.id, name: newName })
-        }
-      />
-    </div>
+        {/* Rack Drawing */}
+        <RackDrawing
+          name={activeRack.name}
+          totalSpaces={activeRack.totalSpaces}
+          isDoubleWide={activeRack.isDoubleWide}
+          tourShow={tourShow}
+          frontItems={frontItems}
+          backItems={backItems}
+          draggedItemSize={draggedItemSize}
+          hoveredU={hoveredU}
+          hoveredSide={(hoveredSide as Side) ?? null}
+          notes={activeRack.notes ?? undefined}
+          rackId={activeRack.id}
+          onNameChange={(newName) =>
+            updateRackNameMutation.mutateAsync({
+              rackId: activeRack.id,
+              name: newName,
+            })
+          }
+        />
+      </div>
+    </DragDropProvider>
   );
 }
