@@ -26,6 +26,10 @@ export interface RackDrawingProps {
   tourShow: string;
   frontItems: RackItem[];
   backItems: RackItem[];
+  frontLeftItems?: RackItem[];
+  frontRightItems?: RackItem[];
+  backLeftItems?: RackItem[];
+  backRightItems?: RackItem[];
   notes?: string;
   rackId?: number;
   draggedItemSize?: number | null;
@@ -45,19 +49,7 @@ const categoryColors: Record<string, string> = {
   default: "bg-rack-item-default",
 };
 
-function getItemPosition(
-  item: RackItem,
-  isDoubleWide: boolean,
-): { left: string; width: string } {
-  if (!isDoubleWide) {
-    return { left: "0", width: "100%" };
-  }
-  if (item.side.includes("LEFT")) {
-    return { left: "0", width: "50%" };
-  }
-  if (item.side.includes("RIGHT")) {
-    return { left: "50%", width: "100%" };
-  }
+function getItemPosition(): { left: string; width: string } {
   return { left: "0", width: "100%" };
 }
 
@@ -79,17 +71,11 @@ function NumberColumn({ rackSize }: { rackSize: number }) {
   );
 }
 
-function DraggableRackItem({
-  item,
-  isDoubleWide,
-}: {
-  item: RackItem;
-  isDoubleWide: boolean;
-}) {
+function DraggableRackItem({ item }: { item: RackItem }) {
   const { ref } = useDraggable({ id: item.id });
   const span = item.endU - item.startU + 1;
   const colorClass = categoryColors[item.category ?? "default"];
-  const { left, width } = getItemPosition(item, isDoubleWide);
+  const { left, width } = getItemPosition();
 
   return (
     <div
@@ -128,14 +114,12 @@ function DroppableRow({ index, side }: { index: number; side: Side }) {
 function RackColumn({
   items,
   rackSize,
-  isDoubleWide = false,
   side,
   draggedItemSize,
   hoveredU,
 }: {
   items: RackItem[];
   rackSize: number;
-  isDoubleWide?: boolean;
   side: Side;
   draggedItemSize?: number | null;
   hoveredU?: number | null;
@@ -162,7 +146,7 @@ function RackColumn({
         />
       )}
       {items.map((item, idx) => (
-        <DraggableRackItem key={idx} item={item} isDoubleWide={isDoubleWide} />
+        <DraggableRackItem key={idx} item={item} />
       ))}
     </div>
   );
@@ -175,6 +159,10 @@ export default function RackDrawing({
   tourShow,
   frontItems,
   backItems,
+  frontLeftItems,
+  frontRightItems,
+  backLeftItems,
+  backRightItems,
   notes,
   rackId,
   onNameChange,
@@ -225,6 +213,158 @@ export default function RackDrawing({
     }
   };
 
+  if (isDoubleWide) {
+    return (
+      <div
+        className={`bg-card border border-border rounded-xl overflow-hidden shadow-lg print:shadow-none ${isDoubleWide ? "max-w-6xl" : "max-w-4xl"}`}
+      >
+        {/* Header */}
+        <div className="grid grid-cols-2 border-b border-border">
+          <div className="p-5 border-r border-border">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+              Type
+            </div>
+            <div className="text-base font-semibold text-foreground mt-1">
+              {totalSpaces}-Space {isDoubleWide ? "Double-Wide" : "Single-Wide"}{" "}
+              Rack
+            </div>
+          </div>
+          <div className="p-5 group">
+            <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+              Rack
+            </div>
+            {isEditing ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isSaving}
+                  className="flex-1 px-2 py-1 bg-muted border border-border rounded text-base font-semibold text-foreground disabled:opacity-50"
+                />
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || !editName.trim() || editName === name}
+                  className="p-1.5 rounded-full hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                  title="Save"
+                >
+                  <Check className="h-4 w-4 text-green-600" />
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditName(name);
+                  }}
+                  disabled={isSaving}
+                  className="p-1.5 rounded-full hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                  title="Cancel"
+                >
+                  <X className="h-4 w-4 text-destructive" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 mt-1">
+                <div className="text-base font-semibold text-primary">
+                  {name}
+                </div>
+                {onNameChange && rackId && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted print:hidden"
+                    title="Rename rack"
+                  >
+                    <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Tour/Show */}
+        <div className="px-5 py-4 border-b border-border bg-rack-header">
+          <div className="text-xl font-semibold text-foreground">
+            {tourShow}
+          </div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium mt-1">
+            Tour/Show
+          </div>
+        </div>
+        {/* Column headers + Rack body */}
+        <div className="flex gap-6 p-4">
+          {/* Front panel */}
+          <div className="flex-1 border border-border rounded overflow-hidden">
+            <div className="text-center py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground bg-rack-header border-b border-border">
+              Front
+            </div>
+            <div className="grid grid-cols-[2.5rem_1fr_1fr]">
+              <div className="border-r border-rack-border">
+                <NumberColumn rackSize={totalSpaces} />
+              </div>
+              <div className="border-r border-rack-border">
+                <RackColumn
+                  items={frontLeftItems ?? []}
+                  rackSize={totalSpaces}
+                  side="FRONT_LEFT"
+                  draggedItemSize={draggedItemSize}
+                  hoveredU={hoveredSide === "FRONT_LEFT" ? hoveredU : null}
+                />
+              </div>
+              <div>
+                <RackColumn
+                  items={frontRightItems ?? []}
+                  rackSize={totalSpaces}
+                  side="FRONT_RIGHT"
+                  draggedItemSize={draggedItemSize}
+                  hoveredU={hoveredSide === "FRONT_RIGHT" ? hoveredU : null}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Back panel */}
+          <div className="flex-1 border border-border rounded overflow-hidden">
+            <div className="text-center py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground bg-rack-header border-b border-border">
+              Back
+            </div>
+            <div className="grid grid-cols-[2.5rem_1fr_1fr]">
+              <div className="border-r border-rack-border">
+                <NumberColumn rackSize={totalSpaces} />
+              </div>
+              <div className="border-r border-rack-border">
+                <RackColumn
+                  items={backLeftItems ?? []}
+                  rackSize={totalSpaces}
+                  side="BACK_LEFT"
+                  draggedItemSize={draggedItemSize}
+                  hoveredU={hoveredSide === "BACK_LEFT" ? hoveredU : null}
+                />
+              </div>
+              <div>
+                <RackColumn
+                  items={backRightItems ?? []}
+                  rackSize={totalSpaces}
+                  side="BACK_RIGHT"
+                  draggedItemSize={draggedItemSize}
+                  hoveredU={hoveredSide === "BACK_RIGHT" ? hoveredU : null}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Notes */}
+        {notes && (
+          <div className="border-t-2 border-foreground/30 p-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+              Additional Info
+            </div>
+            <div className="text-sm text-foreground font-mono">{notes}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden shadow-lg max-w-4xl print:shadow-none">
       {/* Header */}
@@ -319,7 +459,6 @@ export default function RackDrawing({
           <RackColumn
             items={frontItems}
             rackSize={totalSpaces}
-            isDoubleWide={isDoubleWide}
             side="FRONT"
             draggedItemSize={draggedItemSize}
             hoveredU={hoveredSide === "FRONT" ? hoveredU : null}
@@ -332,7 +471,6 @@ export default function RackDrawing({
           <RackColumn
             items={backItems}
             rackSize={totalSpaces}
-            isDoubleWide={isDoubleWide}
             side="BACK"
             draggedItemSize={draggedItemSize}
             hoveredU={hoveredSide === "BACK" ? hoveredU : null}

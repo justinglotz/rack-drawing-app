@@ -13,8 +13,12 @@ interface RackDrawingsViewProps {
   tourShow: string;
 }
 
-function toRackItem(item: PlacedItem, defaultStartPosition?: number): RackItem {
-  const side = item.side ?? "FRONT";
+function toRackItem(
+  item: PlacedItem,
+  defaultStartPosition?: number,
+  defaultSide?: Side,
+): RackItem {
+  const side = item.side ?? defaultSide ?? "FRONT";
   const startPosition = item.startPosition ?? defaultStartPosition ?? 1;
 
   return {
@@ -36,7 +40,14 @@ function toRackItem(item: PlacedItem, defaultStartPosition?: number): RackItem {
 function transformItemsWithPositioning(
   items: PlacedItem[],
   sideFilter: "FRONT" | "BACK",
+  isDoubleWide: boolean,
 ): RackItem[] {
+  const defaultSide: Side = isDoubleWide
+    ? sideFilter === "FRONT"
+      ? "FRONT_LEFT"
+      : "BACK_LEFT"
+    : sideFilter;
+
   const placed: RackItem[] = [];
   const unplaced: Array<{ item: PlacedItem; position: number }> = [];
 
@@ -46,7 +57,7 @@ function transformItemsWithPositioning(
     const side = item.side ?? "FRONT";
     if (side.includes(sideFilter)) {
       if (item.startPosition !== null && item.startPosition !== undefined) {
-        placed.push(toRackItem(item));
+        placed.push(toRackItem(item, undefined, defaultSide));
       } else {
         unplaced.push({ item, position: currentUnplacedPos });
         currentUnplacedPos += item.rackUnits;
@@ -56,7 +67,7 @@ function transformItemsWithPositioning(
 
   // Convert unplaced items using calculated positions
   const unplacedRackItems = unplaced.map(({ item, position }) =>
-    toRackItem(item, position),
+    toRackItem(item, position, defaultSide),
   );
 
   return [...placed, ...unplacedRackItems];
@@ -118,8 +129,24 @@ export default function RackDrawingsView({
     (item) => item.rackUnits > 0,
   );
 
-  const frontItems = transformItemsWithPositioning(itemsWithRU, "FRONT");
-  const backItems = transformItemsWithPositioning(itemsWithRU, "BACK");
+  const frontItems = transformItemsWithPositioning(
+    itemsWithRU,
+    "FRONT",
+    activeRack.isDoubleWide,
+  );
+  const backItems = transformItemsWithPositioning(
+    itemsWithRU,
+    "BACK",
+    activeRack.isDoubleWide,
+  );
+  const frontLeftItems = frontItems.filter(
+    (item) => item.side === "FRONT_LEFT",
+  );
+  const frontRightItems = frontItems.filter(
+    (item) => item.side === "FRONT_RIGHT",
+  );
+  const backLeftItems = backItems.filter((item) => item.side === "BACK_LEFT");
+  const backRightItems = backItems.filter((item) => item.side === "BACK_RIGHT");
   const allItems = [...frontItems, ...backItems];
   const draggedItem = allItems.find((item) => item.id === dragState.itemId);
   const draggedItemSize = draggedItem
@@ -179,6 +206,10 @@ export default function RackDrawingsView({
           tourShow={tourShow}
           frontItems={frontItems}
           backItems={backItems}
+          frontLeftItems={frontLeftItems}
+          frontRightItems={frontRightItems}
+          backLeftItems={backLeftItems}
+          backRightItems={backRightItems}
           draggedItemSize={draggedItemSize}
           hoveredU={hoveredU}
           hoveredSide={(hoveredSide as Side) ?? null}
