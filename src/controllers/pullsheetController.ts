@@ -173,6 +173,8 @@ export const importPullsheet = async (req: Request, res: Response) => {
     if (children.length > 0) {
       await Promise.all(
         children.map(item => {
+          const parentId = itemIdMap.get(item.parentflexResourceId!);
+
           const data: any = {
             name: item.name,
             rackUnits: item.rackUnits,
@@ -182,9 +184,12 @@ export const importPullsheet = async (req: Request, res: Response) => {
             notes: item.notes,
             displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
             job: { connect: { id: job.id } },
-            parent: { connect: { id: itemIdMap.get(item.parentflexResourceId!) ?? undefined } },
             rackDrawing: item.rackDrawingId ? { connect: { id: item.rackDrawingId } } : undefined,
           };
+
+          if (parentId) {
+            data.parent = { connect: { id: parentId } };
+          }
 
           if (item.flexResourceId && catalogIdMap.has(item.flexResourceId)) {
             data.equipmentCatalog = { connect: { flexResourceId: item.flexResourceId } };
