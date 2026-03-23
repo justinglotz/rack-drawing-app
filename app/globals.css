@@ -57,6 +57,7 @@
   --color-rack-item-console: var(--rack-item-console);
   --color-rack-item-generic: var(--rack-item-generic);
   --color-rack-item-default: var(--rack-item-default);
+  --color-rack-drop-target: var(--rack-drop-target);
 }
 
 /* @media (prefers-color-scheme: dark) {
@@ -111,6 +112,7 @@
   --rack-item-console: oklch(0.88 0.07 295);
   --rack-item-generic: oklch(0.88 0 0);
   --rack-item-default: oklch(0.94 0 0);
+  --rack-drop-target: oklch(75.006% 0.08342 226.976);
 }
 
 .dark {
@@ -157,6 +159,7 @@
   --rack-item-console: oklch(0.32 0.08 295);
   --rack-item-generic: oklch(0.32 0 0);
   --rack-item-default: oklch(0.28 0 0);
+  --rack-drop-target: oklch(0.35 0.1 240);
 }
 
 @layer base {
