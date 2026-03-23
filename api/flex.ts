@@ -1,7 +1,7 @@
 import { apiFetch } from "./client";
 import { flexImportResponseSchema, FlexImportResponse } from "@/types/flexTypes";
 import { pullsheetItemSchema, PullsheetItem } from "@/types/jobTypes";
-import { Side } from "@/types/rackDrawingTypes";
+import { Side, placedItemResponseSchema } from "@/types/rackDrawingTypes";
 import { z } from "zod";
 
 export async function importFlexUrl(url: string): Promise<FlexImportResponse> {
@@ -19,7 +19,7 @@ export async function movePlacedItem(
   startPosition: number,
   side: Side,
 ): Promise<void> {
-  return apiFetch(`/jobs/${jobId}/pullsheet-items/${itemId}/move`, z.void(), {
+  await apiFetch(`/jobs/${jobId}/pullsheet-items/${itemId}/move`, placedItemResponseSchema, {
     method: "PATCH",
     body: JSON.stringify({ startPosition, side }),
   });
