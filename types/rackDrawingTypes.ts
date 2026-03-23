@@ -38,6 +38,22 @@ export const placedItemSchema = z.object({
 
 export type PlacedItem = z.infer<typeof placedItemSchema>;
 
+export const placedItemResponseSchema = placedItemSchema.extend({
+  jobId: z.number().int().positive(),
+  equipmentCatalogId: z.number().int().positive().nullable(),
+  genericEquipmentId: z.number().int().positive().nullable(),
+  rackDrawingId: z.number().int().positive(),
+  parentId: z.number().int().positive().nullable(),
+  quantity: z.number().int().positive(),
+  flexResourceId: z.string().nullable(),
+  flexSection: z.string(),
+  isFromPullsheet: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type PlacedItemResponse = z.infer<typeof placedItemResponseSchema>;
+
 export const rackDrawingWithItemsSchema = rackDrawingSchema.extend({
   placedItems: z.array(placedItemSchema).default([]),
 });
