@@ -145,8 +145,8 @@ function RackColumn({
           }}
         />
       )}
-      {items.map((item, idx) => (
-        <DraggableRackItem key={idx} item={item} />
+      {items.map((item) => (
+        <DraggableRackItem key={item.id} item={item} />
       ))}
     </div>
   );
