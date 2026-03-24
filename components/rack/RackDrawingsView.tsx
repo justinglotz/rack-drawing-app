@@ -178,11 +178,24 @@ export default function RackDrawingsView({
             startPosition = maxValidPosition;
           }
 
-          movePlacedItemMutation.mutate({
-            itemId,
-            startPosition,
-            side: side as Side,
-          });
+          const endPosition = startPosition + draggedItemSize - 1;
+          const sideItems = allItems.filter((item) => item.side === side);
+
+          // Check for overlaps
+          const hasOverlap = sideItems.some(
+            (item) =>
+              item.id !== itemId &&
+              startPosition <= item.endU &&
+              endPosition >= item.startU,
+          );
+
+          if (!hasOverlap) {
+            movePlacedItemMutation.mutate({
+              itemId,
+              startPosition,
+              side: side as Side,
+            });
+          }
         }
 
         setDragState({ itemId: null, dropId: null });
@@ -218,6 +231,7 @@ export default function RackDrawingsView({
           backLeftItems={backLeftItems}
           backRightItems={backRightItems}
           draggedItemSize={draggedItemSize}
+          draggedItemId={dragState.itemId}
           hoveredU={hoveredU}
           hoveredSide={(hoveredSide as Side) ?? null}
           notes={activeRack.notes ?? undefined}

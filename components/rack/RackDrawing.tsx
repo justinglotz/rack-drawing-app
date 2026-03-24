@@ -33,6 +33,7 @@ export interface RackDrawingProps {
   notes?: string;
   rackId?: number;
   draggedItemSize?: number | null;
+  draggedItemId?: number | null;
   hoveredU?: number | null;
   hoveredSide?: Side | null;
   onNameChange?: (newName: string) => Promise<unknown>;
@@ -48,6 +49,17 @@ const categoryColors: Record<string, string> = {
   generic: "bg-rack-item-generic",
   default: "bg-rack-item-default",
 };
+
+function hasOverlap(
+  start: number,
+  end: number,
+  items: RackItem[],
+  excludeId: number | null,
+): boolean {
+  return items.some(
+    (item) => item.id !== excludeId && start <= item.endU && end >= item.startU,
+  );
+}
 
 function getItemPosition(): { left: string; width: string } {
   return { left: "0", width: "100%" };
@@ -116,12 +128,14 @@ function RackColumn({
   rackSize,
   side,
   draggedItemSize,
+  draggedItemId,
   hoveredU,
 }: {
   items: RackItem[];
   rackSize: number;
   side: Side;
   draggedItemSize?: number | null;
+  draggedItemId?: number | null;
   hoveredU?: number | null;
 }) {
   // Determine if item should be positioned in left or right lane
@@ -134,6 +148,12 @@ function RackColumn({
       ? clampedPreviewStart + draggedItemSize - 1
       : null;
 
+  const isInvalidPosition =
+    clampedPreviewStart !== null &&
+    previewEnd !== null &&
+    draggedItemId !== undefined &&
+    hasOverlap(clampedPreviewStart, previewEnd, items, draggedItemId ?? null);
+
   return (
     <div className="relative" style={{ height: rackSize * ROW_HEIGHT }}>
       {Array.from({ length: rackSize }, (_, i) => (
@@ -141,7 +161,9 @@ function RackColumn({
       ))}
       {clampedPreviewStart && previewEnd && (
         <div
-          className="absolute left-0 right-0 bg-rack-drop-target z-20 pointer-events-none"
+          className={`absolute left-0 right-0 z-20 pointer-events-none ${
+            isInvalidPosition ? "bg-red-400/40" : "bg-rack-drop-target"
+          }`}
           style={{
             top: (clampedPreviewStart - 1) * ROW_HEIGHT,
             height: (previewEnd - clampedPreviewStart + 1) * ROW_HEIGHT,
@@ -170,6 +192,7 @@ export default function RackDrawing({
   rackId,
   onNameChange,
   draggedItemSize,
+  draggedItemId,
   hoveredU,
   hoveredSide,
 }: RackDrawingProps) {
@@ -311,6 +334,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="FRONT_LEFT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "FRONT_LEFT" ? hoveredU : null}
                 />
               </div>
@@ -320,6 +344,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="FRONT_RIGHT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "FRONT_RIGHT" ? hoveredU : null}
                 />
               </div>
@@ -341,6 +366,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="BACK_LEFT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "BACK_LEFT" ? hoveredU : null}
                 />
               </div>
@@ -350,6 +376,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="BACK_RIGHT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "BACK_RIGHT" ? hoveredU : null}
                 />
               </div>
@@ -464,6 +491,7 @@ export default function RackDrawing({
             rackSize={totalSpaces}
             side="FRONT"
             draggedItemSize={draggedItemSize}
+            draggedItemId={draggedItemId}
             hoveredU={hoveredSide === "FRONT" ? hoveredU : null}
           />
         </div>
@@ -476,6 +504,7 @@ export default function RackDrawing({
             rackSize={totalSpaces}
             side="BACK"
             draggedItemSize={draggedItemSize}
+            draggedItemId={draggedItemId}
             hoveredU={hoveredSide === "BACK" ? hoveredU : null}
           />
         </div>
