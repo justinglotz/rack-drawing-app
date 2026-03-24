@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { Side } from "@/types/rackDrawingTypes";
 import { useMovePlacedItem } from "@/hooks/usePullsheetItems";
+import { hasOverlap } from "./rackUtils";
 interface RackDrawingsViewProps {
   jobId: number;
   tourShow: string;
@@ -168,14 +169,26 @@ export default function RackDrawingsView({
         const itemId = operation.source?.id as number;
         const dropId = operation.target?.id as string;
 
-        if (itemId && dropId) {
+        if (itemId && dropId && draggedItemSize !== null) {
           const [side, uStr] = dropId.split("-");
-          const startPosition = parseInt(uStr);
-          movePlacedItemMutation.mutate({
-            itemId,
-            startPosition,
-            side: side as Side,
-          });
+          let startPosition = parseInt(uStr);
+
+          // Prevent item from extending beyond rack boundary
+          const maxValidPosition = activeRack.totalSpaces - draggedItemSize + 1;
+          if (startPosition > maxValidPosition) {
+            startPosition = maxValidPosition;
+          }
+
+          const endPosition = startPosition + draggedItemSize - 1;
+          const sideItems = allItems.filter((item) => item.side === side);
+
+          if (!hasOverlap(startPosition, endPosition, sideItems, itemId)) {
+            movePlacedItemMutation.mutate({
+              itemId,
+              startPosition,
+              side: side as Side,
+            });
+          }
         }
 
         setDragState({ itemId: null, dropId: null });
@@ -211,6 +224,7 @@ export default function RackDrawingsView({
           backLeftItems={backLeftItems}
           backRightItems={backRightItems}
           draggedItemSize={draggedItemSize}
+          draggedItemId={dragState.itemId}
           hoveredU={hoveredU}
           hoveredSide={(hoveredSide as Side) ?? null}
           notes={activeRack.notes ?? undefined}

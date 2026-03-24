@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import type { Side } from "@/types/rackDrawingTypes";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
+import { hasOverlap } from "./rackUtils";
 
 export interface RackItem {
   id: number;
@@ -33,6 +34,7 @@ export interface RackDrawingProps {
   notes?: string;
   rackId?: number;
   draggedItemSize?: number | null;
+  draggedItemId?: number | null;
   hoveredU?: number | null;
   hoveredSide?: Side | null;
   onNameChange?: (newName: string) => Promise<unknown>;
@@ -116,32 +118,45 @@ function RackColumn({
   rackSize,
   side,
   draggedItemSize,
+  draggedItemId,
   hoveredU,
 }: {
   items: RackItem[];
   rackSize: number;
   side: Side;
   draggedItemSize?: number | null;
+  draggedItemId?: number | null;
   hoveredU?: number | null;
 }) {
   // Determine if item should be positioned in left or right lane
   const previewStart = hoveredU ?? null;
+  const maxValidPosition = draggedItemSize ? rackSize - draggedItemSize + 1 : null;
+  const clampedPreviewStart =
+    previewStart && maxValidPosition ? Math.min(previewStart, maxValidPosition) : previewStart;
   const previewEnd =
-    previewStart && draggedItemSize
-      ? Math.min(previewStart + draggedItemSize - 1, rackSize)
+    clampedPreviewStart && draggedItemSize
+      ? clampedPreviewStart + draggedItemSize - 1
       : null;
+
+  const isInvalidPosition =
+    clampedPreviewStart !== null &&
+    previewEnd !== null &&
+    draggedItemId !== undefined &&
+    hasOverlap(clampedPreviewStart, previewEnd, items, draggedItemId ?? null);
 
   return (
     <div className="relative" style={{ height: rackSize * ROW_HEIGHT }}>
       {Array.from({ length: rackSize }, (_, i) => (
         <DroppableRow key={i} index={i} side={side} />
       ))}
-      {previewStart && previewEnd && (
+      {clampedPreviewStart && previewEnd && (
         <div
-          className="absolute left-0 right-0 bg-rack-drop-target z-20 pointer-events-none"
+          className={`absolute left-0 right-0 z-20 pointer-events-none ${
+            isInvalidPosition ? "bg-red-400/40" : "bg-rack-drop-target"
+          }`}
           style={{
-            top: (previewStart - 1) * ROW_HEIGHT,
-            height: (previewEnd - previewStart + 1) * ROW_HEIGHT,
+            top: (clampedPreviewStart - 1) * ROW_HEIGHT,
+            height: (previewEnd - clampedPreviewStart + 1) * ROW_HEIGHT,
           }}
         />
       )}
@@ -167,6 +182,7 @@ export default function RackDrawing({
   rackId,
   onNameChange,
   draggedItemSize,
+  draggedItemId,
   hoveredU,
   hoveredSide,
 }: RackDrawingProps) {
@@ -308,6 +324,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="FRONT_LEFT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "FRONT_LEFT" ? hoveredU : null}
                 />
               </div>
@@ -317,6 +334,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="FRONT_RIGHT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "FRONT_RIGHT" ? hoveredU : null}
                 />
               </div>
@@ -338,6 +356,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="BACK_LEFT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "BACK_LEFT" ? hoveredU : null}
                 />
               </div>
@@ -347,6 +366,7 @@ export default function RackDrawing({
                   rackSize={totalSpaces}
                   side="BACK_RIGHT"
                   draggedItemSize={draggedItemSize}
+                  draggedItemId={draggedItemId}
                   hoveredU={hoveredSide === "BACK_RIGHT" ? hoveredU : null}
                 />
               </div>
@@ -461,6 +481,7 @@ export default function RackDrawing({
             rackSize={totalSpaces}
             side="FRONT"
             draggedItemSize={draggedItemSize}
+            draggedItemId={draggedItemId}
             hoveredU={hoveredSide === "FRONT" ? hoveredU : null}
           />
         </div>
@@ -473,6 +494,7 @@ export default function RackDrawing({
             rackSize={totalSpaces}
             side="BACK"
             draggedItemSize={draggedItemSize}
+            draggedItemId={draggedItemId}
             hoveredU={hoveredSide === "BACK" ? hoveredU : null}
           />
         </div>
