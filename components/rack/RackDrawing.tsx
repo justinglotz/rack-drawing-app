@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import type { Side } from "@/types/rackDrawingTypes";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
+import { hasOverlap } from "./rackUtils";
 
 export interface RackItem {
   id: number;
@@ -49,17 +50,6 @@ const categoryColors: Record<string, string> = {
   generic: "bg-rack-item-generic",
   default: "bg-rack-item-default",
 };
-
-function hasOverlap(
-  start: number,
-  end: number,
-  items: RackItem[],
-  excludeId: number | null,
-): boolean {
-  return items.some(
-    (item) => item.id !== excludeId && start <= item.endU && end >= item.startU,
-  );
-}
 
 function getItemPosition(): { left: string; width: string } {
   return { left: "0", width: "100%" };

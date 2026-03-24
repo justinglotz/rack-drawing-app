@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DragDropProvider } from "@dnd-kit/react";
 import type { Side } from "@/types/rackDrawingTypes";
 import { useMovePlacedItem } from "@/hooks/usePullsheetItems";
+import { hasOverlap } from "./rackUtils";
 interface RackDrawingsViewProps {
   jobId: number;
   tourShow: string;
@@ -181,15 +182,7 @@ export default function RackDrawingsView({
           const endPosition = startPosition + draggedItemSize - 1;
           const sideItems = allItems.filter((item) => item.side === side);
 
-          // Check for overlaps
-          const hasOverlap = sideItems.some(
-            (item) =>
-              item.id !== itemId &&
-              startPosition <= item.endU &&
-              endPosition >= item.startU,
-          );
-
-          if (!hasOverlap) {
+          if (!hasOverlap(startPosition, endPosition, sideItems, itemId)) {
             movePlacedItemMutation.mutate({
               itemId,
               startPosition,
