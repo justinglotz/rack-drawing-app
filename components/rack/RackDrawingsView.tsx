@@ -168,9 +168,16 @@ export default function RackDrawingsView({
         const itemId = operation.source?.id as number;
         const dropId = operation.target?.id as string;
 
-        if (itemId && dropId) {
+        if (itemId && dropId && draggedItemSize !== null) {
           const [side, uStr] = dropId.split("-");
-          const startPosition = parseInt(uStr);
+          let startPosition = parseInt(uStr);
+
+          // Prevent item from extending beyond rack boundary
+          const maxValidPosition = activeRack.totalSpaces - draggedItemSize + 1;
+          if (startPosition > maxValidPosition) {
+            startPosition = maxValidPosition;
+          }
+
           movePlacedItemMutation.mutate({
             itemId,
             startPosition,

@@ -126,9 +126,12 @@ function RackColumn({
 }) {
   // Determine if item should be positioned in left or right lane
   const previewStart = hoveredU ?? null;
+  const maxValidPosition = draggedItemSize ? rackSize - draggedItemSize + 1 : null;
+  const clampedPreviewStart =
+    previewStart && maxValidPosition ? Math.min(previewStart, maxValidPosition) : previewStart;
   const previewEnd =
-    previewStart && draggedItemSize
-      ? Math.min(previewStart + draggedItemSize - 1, rackSize)
+    clampedPreviewStart && draggedItemSize
+      ? clampedPreviewStart + draggedItemSize - 1
       : null;
 
   return (
@@ -136,12 +139,12 @@ function RackColumn({
       {Array.from({ length: rackSize }, (_, i) => (
         <DroppableRow key={i} index={i} side={side} />
       ))}
-      {previewStart && previewEnd && (
+      {clampedPreviewStart && previewEnd && (
         <div
           className="absolute left-0 right-0 bg-rack-drop-target z-20 pointer-events-none"
           style={{
-            top: (previewStart - 1) * ROW_HEIGHT,
-            height: (previewEnd - previewStart + 1) * ROW_HEIGHT,
+            top: (clampedPreviewStart - 1) * ROW_HEIGHT,
+            height: (previewEnd - clampedPreviewStart + 1) * ROW_HEIGHT,
           }}
         />
       )}
