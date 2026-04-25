@@ -33,6 +33,7 @@ export const placedItemSchema = z.object({
   rackUnits: z.number().int().min(0),
   side: sideSchema.nullish(),
   startPosition: z.number().int().min(1).nullish(),
+  parentId: z.number().int().positive().nullable(),
   category: z.string().nullish(),
 });
 

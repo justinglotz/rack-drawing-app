@@ -124,20 +124,39 @@ export default function RackDrawingsView({
     return null;
   }
 
+  // Build children map: parentId → grouped { name, count }[]
+  const childrenByParentId = new Map<number, { name: string; count: number }[]>();
+  for (const item of activeRack.placedItems) {
+    if (item.parentId == null) continue;
+    const childName = item.displayNameOverride ?? item.name;
+    const existing = childrenByParentId.get(item.parentId) ?? [];
+    const found = existing.find((c) => c.name === childName);
+    if (found) found.count++;
+    else existing.push({ name: childName, count: 1 });
+    childrenByParentId.set(item.parentId, existing);
+  }
+
+  // Only top-level items (no parentId) with rack space are rendered directly
   const itemsWithRU = activeRack.placedItems.filter(
-    (item) => item.rackUnits > 0,
+    (item) => item.rackUnits > 0 && item.parentId == null,
   );
 
-  const frontItems = transformItemsWithPositioning(
+  const attachChildren = (items: RackItem[]) =>
+    items.map((item) => ({
+      ...item,
+      children: childrenByParentId.get(item.id),
+    }));
+
+  const frontItems = attachChildren(transformItemsWithPositioning(
     itemsWithRU,
     "FRONT",
     activeRack.isDoubleWide,
-  );
-  const backItems = transformItemsWithPositioning(
+  ));
+  const backItems = attachChildren(transformItemsWithPositioning(
     itemsWithRU,
     "BACK",
     activeRack.isDoubleWide,
-  );
+  ));
   const frontLeftItems = frontItems.filter((item) => item.side === "FRONT_LEFT");
   const frontRightItems = frontItems.filter((item) => item.side === "FRONT_RIGHT");
   const backLeftItems = backItems.filter((item) => item.side === "BACK_LEFT");
