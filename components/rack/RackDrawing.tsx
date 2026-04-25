@@ -18,6 +18,7 @@ export interface RackItem {
     | "console"
     | "generic"
     | "default";
+  children?: { name: string; count: number }[];
 }
 
 export interface RackDrawingProps {
@@ -82,7 +83,7 @@ function DraggableRackItem({ item }: { item: RackItem }) {
   return (
     <div
       ref={ref}
-      className={`absolute ${colorClass} border border-foreground/30 flex items-center justify-center text-sm font-medium text-foreground/90 z-10`}
+      className={`absolute ${colorClass} border border-foreground/30 flex flex-col items-center justify-center text-center text-sm font-medium text-foreground/90 z-10 px-2 overflow-hidden`}
       style={{
         top: (item.startU - 1) * ROW_HEIGHT,
         height: span * ROW_HEIGHT,
@@ -93,6 +94,13 @@ function DraggableRackItem({ item }: { item: RackItem }) {
       <span className={item.italic ? "italic text-muted-foreground" : ""}>
         {item.name}
       </span>
+      {item.children && item.children.length > 0 && (
+        <div className="mt-0.5 text-[10px] font-normal text-foreground/55 leading-tight">
+          {item.children.map((child) => (
+            <div key={child.name}>{child.name} ×{child.count}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
