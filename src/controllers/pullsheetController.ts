@@ -142,69 +142,78 @@ export const importPullsheet = async (req: Request, res: Response) => {
     const catalogIdMap = new Map(finalCatalogItems.map(c => [c.flexResourceId, c.id]));
     const catalogDisplayNameMap = new Map(finalCatalogItems.map(c => [c.flexResourceId, c.displayName]));
 
-    // 5. Create PullsheetItems
+    // 5. Create PullsheetItems — one record per physical unit (quantity=N → N records each with quantity=1)
+    // Parents and children are created in two parallel waves so children can reference parent IDs.
     const parents = allEquipment.filter(item => item.parentflexResourceId === null);
     const children = allEquipment.filter(item => item.parentflexResourceId !== null);
 
-    const parentPromises = parents.map(async (item) => {
-      const data: any = {
-        name: item.name,
-        rackUnits: item.rackUnits,
-        quantity: item.quantity,
-        flexResourceId: item.flexResourceId,
-        flexSection: item.flexSection,
-        notes: item.notes,
-        displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
-        job: { connect: { id: job.id } },
-        rackDrawing: item.rackDrawingId ? { connect: { id: item.rackDrawingId } } : undefined,
-      };
+    // Wave 1: create all parent units in parallel across items and within each item's quantity
+    const parentResults = await Promise.all(
+      parents.map(async (item) => {
+        const baseData = {
+          name: item.name,
+          rackUnits: item.rackUnits,
+          quantity: 1,
+          flexResourceId: item.flexResourceId,
+          flexSection: item.flexSection,
+          notes: item.notes,
+          displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
+          job: { connect: { id: job.id } },
+          ...(item.rackDrawingId ? { rackDrawing: { connect: { id: item.rackDrawingId } } } : {}),
+          ...(item.flexResourceId && catalogIdMap.has(item.flexResourceId)
+            ? { equipmentCatalog: { connect: { flexResourceId: item.flexResourceId } } }
+            : {}),
+        };
 
-      if (item.flexResourceId && catalogIdMap.has(item.flexResourceId)) {
-        data.equipmentCatalog = { connect: { flexResourceId: item.flexResourceId } };
-      }
+        const units = await Promise.all(
+          Array.from({ length: item.quantity }, () => prisma.pullsheetItem.create({ data: baseData }))
+        );
+        // Use the minimum id as the stable representative for child linking
+        const representativeId = Math.min(...units.map(u => u.id));
+        return { flexResourceId: item.flexResourceId, representativeId, count: units.length };
+      })
+    );
 
-      const pullsheetItem = await prisma.pullsheetItem.create({ data });
-      return { flexResourceId: item.flexResourceId, id: pullsheetItem.id };
-    });
+    // Maps flexResourceId → representative id used to link children
+    const parentFirstIdMap = new Map(parentResults.map(r => [r.flexResourceId, r.representativeId]));
+    const totalParents = parentResults.reduce((sum, r) => sum + r.count, 0);
 
-    const parentResults = await Promise.all(parentPromises);
-    const itemIdMap = new Map(parentResults.map(p => [p.flexResourceId, p.id]));
-
+    // Wave 2: create all child units in parallel (parent IDs are now known)
+    let totalChildren = 0;
     if (children.length > 0) {
-      await Promise.all(
-        children.map(item => {
-          const parentId = itemIdMap.get(item.parentflexResourceId!);
-
-          const data: any = {
+      const childCounts = await Promise.all(
+        children.map(async (item) => {
+          const parentId = parentFirstIdMap.get(item.parentflexResourceId!);
+          const baseData = {
             name: item.name,
             rackUnits: item.rackUnits,
-            quantity: item.quantity,
+            quantity: 1,
             flexResourceId: item.flexResourceId,
             flexSection: item.flexSection,
             notes: item.notes,
             displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
             job: { connect: { id: job.id } },
-            rackDrawing: item.rackDrawingId ? { connect: { id: item.rackDrawingId } } : undefined,
+            ...(item.rackDrawingId ? { rackDrawing: { connect: { id: item.rackDrawingId } } } : {}),
+            ...(parentId ? { parent: { connect: { id: parentId } } } : {}),
+            ...(item.flexResourceId && catalogIdMap.has(item.flexResourceId)
+              ? { equipmentCatalog: { connect: { flexResourceId: item.flexResourceId } } }
+              : {}),
           };
 
-          if (parentId) {
-            data.parent = { connect: { id: parentId } };
-          }
-
-          if (item.flexResourceId && catalogIdMap.has(item.flexResourceId)) {
-            data.equipmentCatalog = { connect: { flexResourceId: item.flexResourceId } };
-          }
-
-          return prisma.pullsheetItem.create({ data });
+          const units = await Promise.all(
+            Array.from({ length: item.quantity }, () => prisma.pullsheetItem.create({ data: baseData }))
+          );
+          return units.length;
         })
       );
+      totalChildren = childCounts.reduce((sum, c) => sum + c, 0);
     }
 
     res.status(201).json({
       data: job,
       metadata: {
         rackDrawingsCreated: parsedData.rackDrawings.length,
-        pullsheetItemsCreated: allEquipment.length,
+        pullsheetItemsCreated: totalParents + totalChildren,
       }
     });
   } catch (error) {
