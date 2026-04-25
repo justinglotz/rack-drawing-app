@@ -68,6 +68,7 @@ export const updateEquipmentName = async (req: Request, res: Response) => {
     const equipmentId = Number(id);
     if (!Number.isInteger(equipmentId)) {
       res.status(400).json({ error: 'Equipment ID must be a number' });
+      return;
     }
 
     const { displayNameOverride } = req.body;
@@ -269,5 +270,53 @@ export const placePullsheetItem = async (req: Request, res: Response) => {
     res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ error: 'Failed to place pullsheet item' });
+  }
+}
+
+export const renameGlobal = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const equipmentId = Number(id);
+    if (!Number.isInteger(equipmentId)) {
+      res.status(400).json({ error: 'Equipment ID must be a number' });
+      return;
+    }
+
+    const { displayName } = req.body;
+    if (!displayName || typeof displayName !== 'string' || !displayName.trim()) {
+      res.status(400).json({ error: 'displayName must be a non-empty string' });
+      return;
+    }
+
+    const item = await prisma.pullsheetItem.findUnique({
+      where: { id: equipmentId },
+    });
+
+    if (!item) {
+      res.status(404).json({ error: 'Pullsheet item not found' });
+      return;
+    }
+
+    if (item.equipmentCatalogId) {
+      await prisma.equipmentCatalog.update({
+        where: { id: item.equipmentCatalogId },
+        data: { displayName: displayName.trim() },
+      });
+      res.status(200).json({ message: 'Global name updated' });
+      return;
+    }
+
+    if (item.genericEquipmentId) {
+      await prisma.genericEquipment.update({
+        where: { id: item.genericEquipmentId },
+        data: { displayName: displayName.trim() },
+      });
+      res.status(200).json({ message: 'Global name updated' });
+      return;
+    }
+
+    res.status(422).json({ error: 'Item has no catalog or generic equipment link — cannot rename globally' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to rename globally' });
   }
 }
