@@ -40,7 +40,7 @@ export interface RackDrawingProps {
   onNameChange?: (newName: string) => Promise<unknown>;
 }
 
-const ROW_HEIGHT = 32;
+const ROW_HEIGHT = 28;
 
 const categoryColors: Record<string, string> = {
   power: "bg-rack-item-power",
