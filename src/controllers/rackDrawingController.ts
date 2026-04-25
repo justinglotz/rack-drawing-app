@@ -42,6 +42,7 @@ export const getRackDrawingsForJob = async (req: Request, res: Response) => {
             rackUnits: true,
             side: true,
             startPosition: true,
+            parentId: true,
             genericEquipment: {
               select: { category: true },
             },
@@ -70,6 +71,7 @@ export const getRackDrawingsForJob = async (req: Request, res: Response) => {
         rackUnits: item.rackUnits,
         side: item.side,
         startPosition: item.startPosition,
+        parentId: item.parentId,
         category: item.genericEquipment ? "generic" : null,
       })),
     }));
