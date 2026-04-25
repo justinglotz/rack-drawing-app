@@ -188,3 +188,86 @@ export const placeGenericEquipment = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to place generic equipment' });
   }
 }
+
+export const placePullsheetItem = async (req: Request, res: Response) => {
+  try {
+    const { jobId, itemId } = req.params;
+    const jobIdNum = Number(jobId);
+    const itemIdNum = Number(itemId);
+
+    if (!Number.isInteger(jobIdNum)) {
+      return res.status(400).json({ error: 'Invalid job ID' });
+    }
+
+    if (!Number.isInteger(itemIdNum)) {
+      return res.status(400).json({ error: 'Invalid item ID' });
+    }
+
+    const { rackDrawingId, startPosition, side } = req.body;
+
+    // Validate rackDrawingId
+    if (!Number.isInteger(rackDrawingId) || rackDrawingId <= 0) {
+      return res.status(400).json({ error: 'rackDrawingId is required and must be a positive integer' });
+    }
+
+    // Validate startPosition
+    if (!Number.isInteger(startPosition) || startPosition < 1) {
+      return res.status(400).json({ error: 'startPosition is required and must be a positive integer' });
+    }
+
+    // Validate side
+    const validSides = ['FRONT', 'BACK', 'FRONT_LEFT', 'FRONT_RIGHT', 'BACK_LEFT', 'BACK_RIGHT'];
+    if (!side || !validSides.includes(side)) {
+      return res.status(400).json({ error: 'side is required and must be a valid value' });
+    }
+
+    // Check if job exists
+    const job = await prisma.job.findUnique({
+      where: { id: jobIdNum },
+    });
+
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Check if item exists and belongs to the job
+    const item = await prisma.pullsheetItem.findUnique({
+      where: { id: itemIdNum },
+    });
+
+    if (!item) {
+      return res.status(404).json({ error: 'Pullsheet item not found' });
+    }
+
+    if (item.jobId !== jobIdNum) {
+      return res.status(404).json({ error: 'Pullsheet item not found' });
+    }
+
+    // Check if item is currently unplaced
+    if (item.rackDrawingId !== null || item.side !== null || item.startPosition !== null) {
+      return res.status(400).json({ error: 'Item is already placed in a rack' });
+    }
+
+    // Place parent and mark all direct children as placed (no position) in one transaction
+    const updated = await prisma.$transaction(async (tx) => {
+      const parent = await tx.pullsheetItem.update({
+        where: { id: itemIdNum },
+        data: { rackDrawingId, startPosition, side },
+        include: { children: true },
+      });
+
+      if (parent.children.length > 0) {
+        await tx.pullsheetItem.updateMany({
+          where: { parentId: itemIdNum },
+          data: { rackDrawingId },
+        });
+      }
+
+      return parent;
+    });
+
+    res.status(200).json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to place pullsheet item' });
+  }
+}

@@ -70,7 +70,7 @@ export const getRackDrawingsForJob = async (req: Request, res: Response) => {
         rackUnits: item.rackUnits,
         side: item.side,
         startPosition: item.startPosition,
-        category: item.genericEquipment?.category || null,
+        category: item.genericEquipment ? "generic" : null,
       })),
     }));
 
