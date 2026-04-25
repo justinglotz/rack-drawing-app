@@ -1,7 +1,6 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import EquipmentSidebar from "@/components/equipment/EquipmentSidebar";
-import RackDrawingsView from "@/components/rack/RackDrawingsView";
+import JobLayout from "@/components/job/JobLayout";
 import { getJob } from "@/api/jobs";
 
 interface JobPageProps {
@@ -39,17 +38,5 @@ export default async function JobPage({ params }: JobPageProps) {
     throw error;
   }
 
-  return (
-    <div className="flex h-screen overflow-hidden">
-      <EquipmentSidebar jobId={jobIdNum} />
-      <main className="flex-1 overflow-auto bg-background flex flex-col">
-        <header className="border-b border-border px-6 py-4">
-          <h1 className="text-2xl font-bold text-foreground">{job.name}</h1>
-        </header>
-        <div className="flex-1 p-6 overflow-auto">
-          <RackDrawingsView jobId={jobIdNum} tourShow={job.name} />
-        </div>
-      </main>
-    </div>
-  );
+  return <JobLayout jobId={jobIdNum} jobName={job.name} />;
 }

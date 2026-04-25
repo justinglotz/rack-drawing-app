@@ -4,86 +4,157 @@ import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useUnplacedItems } from "@/hooks/usePullsheetItems";
 import { useGenericEquipment } from "@/hooks/useGenericEquipment";
+import { useDraggable } from "@dnd-kit/react";
+import { PullsheetItem } from "@/types/jobTypes";
 
-// Shared interface for rendering both PullsheetItem and GenericEquipment
-interface EquipmentDisplayItem {
-  id: number;
+// A grouped row: N unplaced records of the same equipment type collapsed into one
+interface GroupedItem {
+  representativeId: number;
+  flexResourceId: string;
   name: string;
   displayName?: string | null;
   rackUnits: number;
-  quantity: number;
+  count: number;
   parentId?: number | null;
-  children?: EquipmentDisplayItem[];
+  children?: GroupedItem[];
+  sourceType: "pullsheet" | "generic";
+  // For generic items the representativeId is the genericEquipmentId
 }
 
 interface EquipmentSection {
   label: string;
-  items: EquipmentDisplayItem[];
+  items: GroupedItem[];
+}
+
+function DraggablePullsheetRow({
+  item,
+  depth,
+  isHighlighted,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  item: GroupedItem;
+  depth: number;
+  isHighlighted: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const { ref } = useDraggable({
+    id: `sidebar-pullsheet-${item.representativeId}`,
+    data: { rackUnits: item.rackUnits, itemId: item.representativeId },
+  });
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        paddingLeft: `${12 + depth * 16}px`,
+        ...(depth > 0 && {
+          borderLeft: "2px solid hsl(var(--primary) / 0.2)",
+        }),
+      }}
+      className={`flex items-center gap-2 py-1.5 mx-1 rounded cursor-grab text-sm text-foreground transition-colors group ${
+        isHighlighted ? "bg-primary/10" : "hover:bg-secondary/70"
+      }`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <span className="flex-1">{item.displayName || item.name}</span>
+      <span className="text-[10px] text-muted-foreground font-mono">
+        x{item.count}
+      </span>
+      {item.rackUnits > 0 && (
+        <span className="text-[10px] text-muted-foreground font-mono">
+          {item.rackUnits}U
+        </span>
+      )}
+    </div>
+  );
+}
+
+function DraggableGenericRow({
+  item,
+  depth,
+  isHighlighted,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  item: GroupedItem;
+  depth: number;
+  isHighlighted: boolean;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}) {
+  const { ref } = useDraggable({
+    id: `sidebar-generic-${item.representativeId}`,
+    data: { rackUnits: item.rackUnits, genericEquipmentId: item.representativeId },
+  });
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        paddingLeft: `${12 + depth * 16}px`,
+        ...(depth > 0 && {
+          borderLeft: "2px solid hsl(var(--primary) / 0.2)",
+        }),
+      }}
+      className={`flex items-center gap-2 py-1.5 mx-1 rounded cursor-grab text-sm text-foreground transition-colors group ${
+        isHighlighted ? "bg-primary/10" : "hover:bg-secondary/70"
+      }`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <span className="flex-1">{item.displayName || item.name}</span>
+      {item.rackUnits > 0 && (
+        <span className="text-[10px] text-muted-foreground font-mono">
+          {item.rackUnits}U
+        </span>
+      )}
+    </div>
+  );
 }
 
 function ItemRow({
   item,
   depth = 0,
   hoveredItemId,
-  hoveredItemParentId,
   onHoverChange,
 }: {
-  item: EquipmentDisplayItem;
+  item: GroupedItem;
   depth?: number;
-  hoveredItemId: number | null;
-  hoveredItemParentId: number | null;
-  onHoverChange: (itemId: number | null, parentId: number | null) => void;
+  hoveredItemId: string | null;
+  onHoverChange: (id: string | null) => void;
 }) {
-  const hasChildren = item.children && item.children.length > 0;
+  const rowId = `${item.sourceType}-${item.representativeId}`;
+  const parentRowId = item.parentId ? `${item.sourceType}-${item.parentId}` : null;
 
-  // Check if this item or any of its children/parents is hovered
-  const isRelatedToHovered = (hoveredId: number | null, hoveredParentId: number | null): boolean => {
-    if (!hoveredId) return false;
-    if (item.id === hoveredId) return true;
-    if (item.parentId === hoveredId) return true;
-    // Highlight siblings (items with same parent as hovered item)
-    if (hoveredParentId !== null && item.parentId === hoveredParentId) return true;
-    if (hasChildren) {
-      return item.children!.some((child) => child.id === hoveredId);
-    }
-    return false;
+  const isHighlighted =
+    hoveredItemId === rowId ||
+    (parentRowId !== null && hoveredItemId === parentRowId) ||
+    (item.children?.some((c) => `${c.sourceType}-${c.representativeId}` === hoveredItemId) ?? false);
+
+  const sharedProps = {
+    item,
+    depth,
+    isHighlighted,
+    onMouseEnter: () => onHoverChange(rowId),
+    onMouseLeave: () => onHoverChange(null),
   };
-
-  const isHighlighted = isRelatedToHovered(hoveredItemId, hoveredItemParentId);
 
   return (
     <>
-      <div
-        style={{
-          paddingLeft: `${12 + depth * 16}px`,
-          ...(depth > 0 && {
-            borderLeft: "2px solid hsl(var(--primary) / 0.2)",
-            borderRadius: "0",
-          }),
-        }}
-        className={`flex items-center gap-2 py-1.5 mx-1 rounded cursor-grab text-sm text-foreground transition-colors group ${
-          isHighlighted ? "bg-primary/10" : "hover:bg-secondary/70"
-        }`}
-        onMouseEnter={() => onHoverChange(item.id, item.parentId ?? null)}
-        onMouseLeave={() => onHoverChange(null, null)}
-      >
-        <span className="flex-1">{item.displayName || item.name}</span>
-        <span className="text-[10px] text-muted-foreground font-mono">
-          x{item.quantity}
-        </span>
-        {item.rackUnits > 0 && (
-          <span className="text-[10px] text-muted-foreground font-mono">
-            {item.rackUnits}U
-          </span>
-        )}
-      </div>
+      {item.sourceType === "pullsheet" ? (
+        <DraggablePullsheetRow {...sharedProps} />
+      ) : (
+        <DraggableGenericRow {...sharedProps} />
+      )}
       {item.children?.map((child) => (
         <ItemRow
-          key={child.id}
+          key={`${child.sourceType}-${child.representativeId}`}
           item={child}
           depth={depth + 1}
           hoveredItemId={hoveredItemId}
-          hoveredItemParentId={hoveredItemParentId}
           onHoverChange={onHoverChange}
         />
       ))}
@@ -93,8 +164,7 @@ function ItemRow({
 
 function SectionGroup({ section }: { section: EquipmentSection }) {
   const [open, setOpen] = useState(false);
-  const [hoveredItemId, setHoveredItemId] = useState<number | null>(null);
-  const [hoveredItemParentId, setHoveredItemParentId] = useState<number | null>(null);
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
   return (
     <div>
@@ -117,20 +187,102 @@ function SectionGroup({ section }: { section: EquipmentSection }) {
         <div className="pb-1">
           {section.items.map((item) => (
             <ItemRow
-              key={item.id}
+              key={`${item.sourceType}-${item.representativeId}`}
               item={item}
               hoveredItemId={hoveredItemId}
-              hoveredItemParentId={hoveredItemParentId}
-              onHoverChange={(itemId, parentId) => {
-                setHoveredItemId(itemId);
-                setHoveredItemParentId(parentId);
-              }}
+              onHoverChange={setHoveredItemId}
             />
           ))}
         </div>
       )}
     </div>
   );
+}
+
+// Group pullsheet items by flexResourceId within each section, building a hierarchy
+function groupPullsheetItems(
+  items: PullsheetItem[],
+  showAllItems: boolean,
+): Map<string, GroupedItem[]> {
+  const grouped = new Map<string, GroupedItem[]>();
+
+  // Group all records by flexResourceId to get counts and representative IDs
+  const byFlexId = new Map<string, PullsheetItem[]>();
+  for (const item of items) {
+    const key = item.flexResourceId || item.name;
+    if (!byFlexId.has(key)) byFlexId.set(key, []);
+    byFlexId.get(key)!.push(item);
+  }
+
+  // Build a map of flexResourceId → GroupedItem (root items only) keyed by parentId
+  // We need to find root items and their children
+  const rootItems = items.filter((i) => !i.parentId && (showAllItems || i.rackUnits > 0));
+
+  // Group children by parentId's flexResourceId → representative parentId
+  // We need the representative (lowest id) of the parent group to look up parentId
+  const representativeByFlexId = new Map<string, number>();
+  for (const [flexId, group] of byFlexId) {
+    const sorted = [...group].sort((a, b) => a.id - b.id);
+    representativeByFlexId.set(flexId, sorted[0]!.id);
+  }
+
+  // Build GroupedItem for a given flexResourceId + items
+  const buildGroupedItem = (
+    flexId: string,
+    records: PullsheetItem[],
+    parentId: number | null,
+  ): GroupedItem => {
+    const sorted = [...records].sort((a, b) => a.id - b.id);
+    const rep = sorted[0]!;
+    return {
+      representativeId: rep.id,
+      flexResourceId: flexId,
+      name: rep.name,
+      displayName: rep.displayNameOverride,
+      rackUnits: rep.rackUnits,
+      count: records.length,
+      parentId,
+      sourceType: "pullsheet",
+      children: [],
+    };
+  };
+
+  // Track which flexIds we've already emitted as roots (to avoid duplicates)
+  const emittedRoots = new Set<string>();
+
+  for (const rootItem of rootItems) {
+    const flexId = rootItem.flexResourceId || rootItem.name;
+    if (emittedRoots.has(flexId)) continue;
+    emittedRoots.add(flexId);
+
+    const section = rootItem.flexSection;
+    if (!grouped.has(section)) grouped.set(section, []);
+
+    const records = byFlexId.get(flexId) ?? [rootItem];
+    const groupedItem = buildGroupedItem(flexId, records, null);
+
+    // Find children of this group (items whose parentId is one of the representative's records)
+    // Children link to the first/representative parent record
+    const repId = groupedItem.representativeId;
+    const childItems = items.filter((i) => i.parentId === repId);
+
+    if (childItems.length > 0) {
+      const childByFlexId = new Map<string, PullsheetItem[]>();
+      for (const child of childItems) {
+        const key = child.flexResourceId || child.name;
+        if (!childByFlexId.has(key)) childByFlexId.set(key, []);
+        childByFlexId.get(key)!.push(child);
+      }
+
+      for (const [childFlexId, childRecords] of childByFlexId) {
+        groupedItem.children!.push(buildGroupedItem(childFlexId, childRecords, repId));
+      }
+    }
+
+    grouped.get(section)!.push(groupedItem);
+  }
+
+  return grouped;
 }
 
 interface EquipmentSidebarProps {
@@ -146,85 +298,39 @@ export default function EquipmentSidebar({ jobId }: EquipmentSidebarProps) {
     error: genericError,
   } = useGenericEquipment();
 
-  // Log errors for debugging
   useEffect(() => {
-    if (error) {
-      console.log("Pullsheet items error:", error);
-    }
+    if (error) console.log("Pullsheet items error:", error);
   }, [error]);
 
   useEffect(() => {
-    if (genericError) {
-      console.log("Generic equipment error:", genericError);
-    }
+    if (genericError) console.log("Generic equipment error:", genericError);
   }, [genericError]);
 
-  // Build pullsheet items with parent-child hierarchy
-  const groupedPullsheetItems = new Map<string, EquipmentDisplayItem[]>();
-  if (pullsheetItems) {
-    // Map all items, track by ID
-    const itemMap = new Map<number, EquipmentDisplayItem>();
-    pullsheetItems.forEach((item) => {
-      itemMap.set(item.id, {
-        id: item.id,
-        name: item.name,
-        displayName: item.displayNameOverride,
-        rackUnits: item.rackUnits,
-        quantity: item.quantity,
-        parentId: item.parentId,
-        children: [],
-      });
-    });
-
-    // Assign children to parents
-    pullsheetItems.forEach((item) => {
-      if (item.parentId && itemMap.has(item.parentId)) {
-        const parent = itemMap.get(item.parentId);
-        const child = itemMap.get(item.id);
-        if (child) {
-          parent?.children?.push(child);
-        }
-      }
-    });
-
-    // Collect root items that pass the filter and group by flexSection
-    pullsheetItems.forEach((item) => {
-      if (!item.parentId && (showAllItems || item.rackUnits > 0)) {
-        const displayItem = itemMap.get(item.id);
-        if (displayItem) {
-          const section = item.flexSection;
-          if (!groupedPullsheetItems.has(section)) {
-            groupedPullsheetItems.set(section, []);
-          }
-          groupedPullsheetItems.get(section)?.push(displayItem);
-        }
-      }
-    });
-  }
+  const groupedPullsheetItems = pullsheetItems
+    ? groupPullsheetItems(pullsheetItems, showAllItems)
+    : new Map<string, GroupedItem[]>();
 
   const pullsheetSections: EquipmentSection[] = Array.from(
     groupedPullsheetItems.entries(),
   ).map(([label, items]) => ({ label, items }));
 
-  // Group generic items by category
-  const groupedGenericItems = new Map<string, EquipmentDisplayItem[]>();
+  // Generic items: always one per entry (no per-unit tracking needed)
+  const groupedGenericItems = new Map<string, GroupedItem[]>();
   if (genericEquipment) {
-    genericEquipment.forEach((item) => {
+    for (const item of genericEquipment) {
       if (!groupedGenericItems.has(item.category)) {
         groupedGenericItems.set(item.category, []);
       }
-      const items = groupedGenericItems.get(item.category);
-      if (items) {
-        // Map GenericEquipment to EquipmentDisplayItem
-        items.push({
-          id: item.id,
-          name: item.name,
-          displayName: item.displayName,
-          rackUnits: item.rackUnits,
-          quantity: 1,
-        });
-      }
-    });
+      groupedGenericItems.get(item.category)!.push({
+        representativeId: item.id,
+        flexResourceId: String(item.id),
+        name: item.name,
+        displayName: item.displayName,
+        rackUnits: item.rackUnits,
+        count: 1,
+        sourceType: "generic",
+      });
+    }
   }
 
   const genericSections: EquipmentSection[] = Array.from(

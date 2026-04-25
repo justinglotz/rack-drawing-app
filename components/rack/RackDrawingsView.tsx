@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useRackDrawings, useUpdateRackName } from "@/hooks/useRackDrawings";
 import { PlacedItem } from "@/types/rackDrawingTypes";
 import RackDrawing, { RackItem } from "./RackDrawing";
 import { Button } from "@/components/ui/button";
-import { DragDropProvider } from "@dnd-kit/react";
 import type { Side } from "@/types/rackDrawingTypes";
-import { useMovePlacedItem } from "@/hooks/usePullsheetItems";
-import { hasOverlap } from "./rackUtils";
+
 interface RackDrawingsViewProps {
   jobId: number;
   tourShow: string;
+  activeRackId: number | null;
+  onActiveRackChange: (id: number) => void;
+  draggedItemSize: number | null;
+  draggedItemId: number | null;
+  hoveredDropId: string | null;
 }
 
 function toRackItem(
@@ -52,7 +55,6 @@ function transformItemsWithPositioning(
   const placed: RackItem[] = [];
   const unplaced: Array<{ item: PlacedItem; position: number }> = [];
 
-  // Separate placed from unplaced and calculate unplaced positions
   let currentUnplacedPos = 1;
   for (const item of items) {
     const side = item.side ?? "FRONT";
@@ -66,7 +68,6 @@ function transformItemsWithPositioning(
     }
   }
 
-  // Convert unplaced items using calculated positions
   const unplacedRackItems = unplaced.map(({ item, position }) =>
     toRackItem(item, position, defaultSide),
   );
@@ -77,15 +78,14 @@ function transformItemsWithPositioning(
 export default function RackDrawingsView({
   jobId,
   tourShow,
+  activeRackId,
+  onActiveRackChange,
+  draggedItemSize,
+  draggedItemId,
+  hoveredDropId,
 }: RackDrawingsViewProps) {
   const { data: racks, isLoading, error } = useRackDrawings(jobId);
   const updateRackNameMutation = useUpdateRackName(jobId);
-  const [activeRackId, setActiveRackId] = useState<number | null>(null);
-  const [dragState, setDragState] = useState<{
-    itemId: number | null;
-    dropId: string | null;
-  }>({ itemId: null, dropId: null });
-  const movePlacedItemMutation = useMovePlacedItem(jobId, activeRackId ?? 0);
 
   const sortedRacks = useMemo(() => {
     if (!racks) return [];
@@ -117,7 +117,6 @@ export default function RackDrawingsView({
     );
   }
 
-  // Use first rack if activeRackId not set
   const displayRackId = activeRackId ?? sortedRacks[0]?.id;
   const activeRack = sortedRacks.find((r) => r.id === displayRackId);
 
@@ -125,7 +124,6 @@ export default function RackDrawingsView({
     return null;
   }
 
-  // Filter out items with 0 RU (cables, docs, etc.) - they shouldn't render in the rack
   const itemsWithRU = activeRack.placedItems.filter(
     (item) => item.rackUnits > 0,
   );
@@ -140,103 +138,55 @@ export default function RackDrawingsView({
     "BACK",
     activeRack.isDoubleWide,
   );
-  const frontLeftItems = frontItems.filter(
-    (item) => item.side === "FRONT_LEFT",
-  );
-  const frontRightItems = frontItems.filter(
-    (item) => item.side === "FRONT_RIGHT",
-  );
+  const frontLeftItems = frontItems.filter((item) => item.side === "FRONT_LEFT");
+  const frontRightItems = frontItems.filter((item) => item.side === "FRONT_RIGHT");
   const backLeftItems = backItems.filter((item) => item.side === "BACK_LEFT");
   const backRightItems = backItems.filter((item) => item.side === "BACK_RIGHT");
-  const allItems = [...frontItems, ...backItems];
-  const draggedItem = allItems.find((item) => item.id === dragState.itemId);
-  const draggedItemSize = draggedItem
-    ? draggedItem.endU - draggedItem.startU + 1
-    : null;
 
-  const [hoveredSide, hoveredUStr] = dragState.dropId?.split("-") ?? [];
+  const [hoveredSide, hoveredUStr] = hoveredDropId?.split("-") ?? [];
   const hoveredU = hoveredUStr ? parseInt(hoveredUStr) : null;
 
   return (
-    <DragDropProvider
-      onDragOver={({ operation }) => {
-        setDragState({
-          itemId: (operation.source?.id as number) ?? null,
-          dropId: (operation.target?.id as string) ?? null,
-        });
-      }}
-      onDragEnd={({ operation }) => {
-        const itemId = operation.source?.id as number;
-        const dropId = operation.target?.id as string;
+    <div className="space-y-6">
+      {sortedRacks.length > 1 && (
+        <div className="flex gap-2 border-b border-border">
+          {sortedRacks.map((rack) => (
+            <Button
+              key={rack.id}
+              variant={displayRackId === rack.id ? "default" : "ghost"}
+              onClick={() => onActiveRackChange(rack.id)}
+              className="rounded-b-none"
+            >
+              {rack.name}
+            </Button>
+          ))}
+        </div>
+      )}
 
-        if (itemId && dropId && draggedItemSize !== null) {
-          const [side, uStr] = dropId.split("-");
-          let startPosition = parseInt(uStr);
-
-          // Prevent item from extending beyond rack boundary
-          const maxValidPosition = activeRack.totalSpaces - draggedItemSize + 1;
-          if (startPosition > maxValidPosition) {
-            startPosition = maxValidPosition;
-          }
-
-          const endPosition = startPosition + draggedItemSize - 1;
-          const sideItems = allItems.filter((item) => item.side === side);
-
-          if (!hasOverlap(startPosition, endPosition, sideItems, itemId)) {
-            movePlacedItemMutation.mutate({
-              itemId,
-              startPosition,
-              side: side as Side,
-            });
-          }
+      <RackDrawing
+        name={activeRack.name}
+        totalSpaces={activeRack.totalSpaces}
+        isDoubleWide={activeRack.isDoubleWide}
+        tourShow={tourShow}
+        frontItems={frontItems}
+        backItems={backItems}
+        frontLeftItems={frontLeftItems}
+        frontRightItems={frontRightItems}
+        backLeftItems={backLeftItems}
+        backRightItems={backRightItems}
+        draggedItemSize={draggedItemSize}
+        draggedItemId={draggedItemId}
+        hoveredU={hoveredU}
+        hoveredSide={(hoveredSide as Side) ?? null}
+        notes={activeRack.notes ?? undefined}
+        rackId={activeRack.id}
+        onNameChange={(newName) =>
+          updateRackNameMutation.mutateAsync({
+            rackId: activeRack.id,
+            name: newName,
+          })
         }
-
-        setDragState({ itemId: null, dropId: null });
-      }}
-    >
-      <div className="space-y-6">
-        {/* Tabs */}
-        {sortedRacks.length > 1 && (
-          <div className="flex gap-2 border-b border-border">
-            {sortedRacks.map((rack) => (
-              <Button
-                key={rack.id}
-                variant={displayRackId === rack.id ? "default" : "ghost"}
-                onClick={() => setActiveRackId(rack.id)}
-                className="rounded-b-none"
-              >
-                {rack.name}
-              </Button>
-            ))}
-          </div>
-        )}
-
-        {/* Rack Drawing */}
-        <RackDrawing
-          name={activeRack.name}
-          totalSpaces={activeRack.totalSpaces}
-          isDoubleWide={activeRack.isDoubleWide}
-          tourShow={tourShow}
-          frontItems={frontItems}
-          backItems={backItems}
-          frontLeftItems={frontLeftItems}
-          frontRightItems={frontRightItems}
-          backLeftItems={backLeftItems}
-          backRightItems={backRightItems}
-          draggedItemSize={draggedItemSize}
-          draggedItemId={dragState.itemId}
-          hoveredU={hoveredU}
-          hoveredSide={(hoveredSide as Side) ?? null}
-          notes={activeRack.notes ?? undefined}
-          rackId={activeRack.id}
-          onNameChange={(newName) =>
-            updateRackNameMutation.mutateAsync({
-              rackId: activeRack.id,
-              name: newName,
-            })
-          }
-        />
-      </div>
-    </DragDropProvider>
+      />
+    </div>
   );
 }
