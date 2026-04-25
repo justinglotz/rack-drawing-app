@@ -121,9 +121,13 @@ function setupSuccessfulImportMocks() {
       { flexResourceId: 'equip-002', id: 101, displayName: 'Shure SM58' },
     ])
   mockPrisma.equipmentCatalog.createMany.mockResolvedValue({ count: 2 })
+  // equip-001 has quantity=1 (1 call), equip-002 has quantity=4 (4 calls) = 5 total
   mockPrisma.pullsheetItem.create
     .mockResolvedValueOnce({ id: 200, flexResourceId: 'equip-001' })
     .mockResolvedValueOnce({ id: 201, flexResourceId: 'equip-002' })
+    .mockResolvedValueOnce({ id: 202, flexResourceId: 'equip-002' })
+    .mockResolvedValueOnce({ id: 203, flexResourceId: 'equip-002' })
+    .mockResolvedValueOnce({ id: 204, flexResourceId: 'equip-002' })
 }
 
 // --- Dynamic import after mocks are registered ---
@@ -225,7 +229,7 @@ describe('importPullsheet', () => {
       data: { id: 1, name: 'Test Show 2026' },
       metadata: {
         rackDrawingsCreated: 1,
-        pullsheetItemsCreated: 2,
+        pullsheetItemsCreated: 5,
       },
     })
 
@@ -240,7 +244,8 @@ describe('importPullsheet', () => {
       }),
     )
     expect(mockPrisma.rackDrawing.create).toHaveBeenCalledTimes(1)
-    expect(mockPrisma.pullsheetItem.create).toHaveBeenCalledTimes(2)
+    // equip-001 quantity=1 + equip-002 quantity=4 = 5 individual unit records
+    expect(mockPrisma.pullsheetItem.create).toHaveBeenCalledTimes(5)
   })
 
   it('links rack equipment to the correct rackDrawingId', async () => {
@@ -276,6 +281,9 @@ describe('importPullsheet', () => {
     mockPrisma.pullsheetItem.create
       .mockResolvedValueOnce({ id: 200, flexResourceId: 'equip-001' })
       .mockResolvedValueOnce({ id: 201, flexResourceId: 'equip-002' })
+      .mockResolvedValueOnce({ id: 202, flexResourceId: 'equip-002' })
+      .mockResolvedValueOnce({ id: 203, flexResourceId: 'equip-002' })
+      .mockResolvedValueOnce({ id: 204, flexResourceId: 'equip-002' })
 
     const res = makeRes()
     await importPullsheet(makeReq({ flexUrl: VALID_FLEX_URL }), res)
