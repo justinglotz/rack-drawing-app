@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getUnplacedItems, movePlacedItem, placePullsheetItem, placeGenericEquipment } from "@/api/flex";
+import { getUnplacedItems, movePlacedItem, placePullsheetItem, placeGenericEquipment, renameRackItem, renameRackItemGlobal } from "@/api/flex";
 import { queryKeys } from "@/api/queryKeys";
 import { Side, RackDrawingWithItems } from "@/types/rackDrawingTypes";
 import { PullsheetItem } from "@/types/jobTypes";
@@ -177,6 +177,58 @@ export function usePlaceGenericEquipment(jobId: number) {
         queryClient.setQueryData(queryKeys.rackDrawings.byJob(jobId), context.previousRacks);
       }
       toast.error("Failed to place item. Please try again.");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rackDrawings.byJob(jobId) });
+    },
+  });
+}
+
+export function useRenameRackItem(jobId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ itemId, displayNameOverride }: { itemId: number; displayNameOverride: string }) =>
+      renameRackItem(jobId, itemId, displayNameOverride),
+    onMutate: async ({ itemId, displayNameOverride }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.rackDrawings.byJob(jobId) });
+      const previousRacks = queryClient.getQueryData(queryKeys.rackDrawings.byJob(jobId));
+
+      queryClient.setQueryData<RackDrawingWithItems[]>(
+        queryKeys.rackDrawings.byJob(jobId),
+        (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((rack) => ({
+            ...rack,
+            placedItems: rack.placedItems.map((item) =>
+              item.id === itemId ? { ...item, displayNameOverride } : item
+            ),
+          }));
+        }
+      );
+
+      return { previousRacks };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousRacks) {
+        queryClient.setQueryData(queryKeys.rackDrawings.byJob(jobId), context.previousRacks);
+      }
+      toast.error("Failed to rename item. Please try again.");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.rackDrawings.byJob(jobId) });
+    },
+  });
+}
+
+export function useRenameRackItemGlobal(jobId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ itemId, displayName }: { itemId: number; displayName: string }) =>
+      renameRackItemGlobal(jobId, itemId, displayName),
+    onError: () => {
+      toast.error("Failed to rename item globally. Please try again.");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.rackDrawings.byJob(jobId) });

@@ -3,6 +3,14 @@ import { Pencil, Check, X } from "lucide-react";
 import type { Side } from "@/types/rackDrawingTypes";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { hasOverlap } from "./rackUtils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export interface RackItem {
   id: number;
@@ -19,6 +27,8 @@ export interface RackItem {
     | "generic"
     | "default";
   children?: { name: string; count: number }[];
+  onRenameLocal?: (newName: string) => Promise<void>;
+  onRenameGlobal?: (newName: string) => Promise<void>;
 }
 
 export interface RackDrawingProps {
@@ -74,34 +84,135 @@ function NumberColumn({ rackSize }: { rackSize: number }) {
   );
 }
 
+function RenameDialog({
+  open,
+  onOpenChange,
+  currentName,
+  onRenameLocal,
+  onRenameGlobal,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentName: string;
+  onRenameLocal?: (newName: string) => Promise<void>;
+  onRenameGlobal?: (newName: string) => Promise<void>;
+}) {
+  const [name, setName] = useState(currentName);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setName(currentName);
+      setTimeout(() => inputRef.current?.select(), 50);
+    }
+  }, [open, currentName]);
+
+  const isValid = name.trim().length > 0 && name.trim() !== currentName;
+
+  async function handleAction(action: "local" | "global") {
+    if (!isValid) return;
+    setSaving(true);
+    try {
+      if (action === "local") {
+        await onRenameLocal?.(name.trim());
+      } else {
+        await onRenameGlobal?.(name.trim());
+      }
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Rename equipment</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <Input
+            ref={inputRef}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && isValid) handleAction("local");
+              if (e.key === "Escape") onOpenChange(false);
+            }}
+            disabled={saving}
+          />
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={() => handleAction("local")}
+              disabled={!isValid || saving}
+              variant="default"
+              className="w-full"
+            >
+              Rename for this rack
+            </Button>
+            <Button
+              onClick={() => handleAction("global")}
+              disabled={!isValid || saving}
+              variant="outline"
+              className="w-full"
+            >
+              Rename globally
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function DraggableRackItem({ item }: { item: RackItem }) {
   const { ref } = useDraggable({ id: item.id });
+  const [dialogOpen, setDialogOpen] = useState(false);
   const span = item.endU - item.startU + 1;
   const colorClass = categoryColors[item.category ?? "default"];
   const { left, width } = getItemPosition();
 
   return (
-    <div
-      ref={ref}
-      className={`absolute ${colorClass} border border-foreground/30 flex flex-col items-center justify-center text-center text-sm font-medium text-foreground/90 z-10 px-2 overflow-hidden`}
-      style={{
-        top: (item.startU - 1) * ROW_HEIGHT,
-        height: span * ROW_HEIGHT,
-        left,
-        width,
-      }}
-    >
-      <span className={item.italic ? "italic text-muted-foreground" : ""}>
-        {item.name}
-      </span>
-      {item.children && item.children.length > 0 && (
-        <div className="mt-0.5 text-[10px] font-normal text-foreground/55 leading-tight">
-          {item.children.map((child) => (
-            <div key={child.name}>{child.name} ×{child.count}</div>
-          ))}
-        </div>
-      )}
-    </div>
+    <>
+      <div
+        ref={ref}
+        className={`absolute ${colorClass} border border-foreground/30 flex flex-col items-center justify-center text-center text-sm font-medium text-foreground/90 z-10 px-2 overflow-hidden group/item`}
+        style={{
+          top: (item.startU - 1) * ROW_HEIGHT,
+          height: span * ROW_HEIGHT,
+          left,
+          width,
+        }}
+      >
+        <span className={item.italic ? "italic text-muted-foreground" : ""}>
+          {item.name}
+        </span>
+        {item.children && item.children.length > 0 && (
+          <div className="mt-0.5 text-[10px] font-normal text-foreground/55 leading-tight">
+            {item.children.map((child) => (
+              <div key={child.name}>{child.name} ×{child.count}</div>
+            ))}
+          </div>
+        )}
+        {(item.onRenameLocal || item.onRenameGlobal) && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setDialogOpen(true); }}
+            className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-foreground/10 print:hidden"
+            title="Rename"
+          >
+            <Pencil className="h-3 w-3 text-foreground/50" />
+          </button>
+        )}
+      </div>
+      <RenameDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        currentName={item.name}
+        onRenameLocal={item.onRenameLocal}
+        onRenameGlobal={item.onRenameGlobal}
+      />
+    </>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { DragDropProvider } from "@dnd-kit/react";
+import { toast } from "sonner";
 import EquipmentSidebar from "@/components/equipment/EquipmentSidebar";
 import RackDrawingsView from "@/components/rack/RackDrawingsView";
 import { useRackDrawings } from "@/hooks/useRackDrawings";
@@ -82,6 +83,12 @@ export default function JobLayout({ jobId, jobName }: JobLayoutProps) {
       onDragEnd={({ operation }) => {
         const sourceId = operation.source?.id;
         const dropId = (operation.target?.id as string) ?? null;
+
+        if (sourceId && dropId && dragState.draggedItemSize === 0) {
+          toast.info("This item is not rack-mounted and can't be placed in the rack.");
+          setDragState({ draggedItemId: null, draggedItemSize: null, dropId: null });
+          return;
+        }
 
         if (sourceId && dropId && dragState.draggedItemSize !== null && activeRack) {
           const [sideStr, uStr] = dropId.split("-");

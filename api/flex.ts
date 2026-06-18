@@ -58,3 +58,33 @@ export async function placeGenericEquipment(
     }
   );
 }
+
+export async function renameRackItem(
+  jobId: number,
+  itemId: number,
+  displayNameOverride: string,
+): Promise<void> {
+  await apiFetch(
+    `/jobs/${jobId}/pullsheet-items/${itemId}/display-name`,
+    pullsheetItemSchema,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ displayNameOverride }),
+    }
+  );
+}
+
+export async function renameRackItemGlobal(
+  jobId: number,
+  itemId: number,
+  displayName: string,
+): Promise<void> {
+  await apiFetch(
+    `/jobs/${jobId}/pullsheet-items/${itemId}/catalog-name`,
+    pullsheetItemSchema,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ displayName }),
+    }
+  );
+}

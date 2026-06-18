@@ -6,6 +6,7 @@ import { PlacedItem } from "@/types/rackDrawingTypes";
 import RackDrawing, { RackItem } from "./RackDrawing";
 import { Button } from "@/components/ui/button";
 import type { Side } from "@/types/rackDrawingTypes";
+import { useRenameRackItem, useRenameRackItemGlobal } from "@/hooks/usePullsheetItems";
 
 interface RackDrawingsViewProps {
   jobId: number;
@@ -21,6 +22,8 @@ function toRackItem(
   item: PlacedItem,
   defaultStartPosition?: number,
   defaultSide?: Side,
+  onRenameLocal?: (newName: string) => Promise<void>,
+  onRenameGlobal?: (newName: string) => Promise<void>,
 ): RackItem {
   const side = item.side ?? defaultSide ?? "FRONT";
   const startPosition = item.startPosition ?? defaultStartPosition ?? 1;
@@ -38,6 +41,8 @@ function toRackItem(
       | "console"
       | "generic"
       | "default",
+    onRenameLocal,
+    onRenameGlobal,
   };
 }
 
@@ -45,6 +50,8 @@ function transformItemsWithPositioning(
   items: PlacedItem[],
   sideFilter: "FRONT" | "BACK",
   isDoubleWide: boolean,
+  makeRenameLocal: (itemId: number) => (newName: string) => Promise<void>,
+  makeRenameGlobal: (itemId: number) => (newName: string) => Promise<void>,
 ): RackItem[] {
   const defaultSide: Side = isDoubleWide
     ? sideFilter === "FRONT"
@@ -60,7 +67,7 @@ function transformItemsWithPositioning(
     const side = item.side ?? "FRONT";
     if (side.includes(sideFilter)) {
       if (item.startPosition !== null && item.startPosition !== undefined) {
-        placed.push(toRackItem(item, undefined, defaultSide));
+        placed.push(toRackItem(item, undefined, defaultSide, makeRenameLocal(item.id), makeRenameGlobal(item.id)));
       } else {
         unplaced.push({ item, position: currentUnplacedPos });
         currentUnplacedPos += item.rackUnits;
@@ -69,7 +76,7 @@ function transformItemsWithPositioning(
   }
 
   const unplacedRackItems = unplaced.map(({ item, position }) =>
-    toRackItem(item, position, defaultSide),
+    toRackItem(item, position, defaultSide, makeRenameLocal(item.id), makeRenameGlobal(item.id)),
   );
 
   return [...placed, ...unplacedRackItems];
@@ -86,6 +93,15 @@ export default function RackDrawingsView({
 }: RackDrawingsViewProps) {
   const { data: racks, isLoading, error } = useRackDrawings(jobId);
   const updateRackNameMutation = useUpdateRackName(jobId);
+  const renameItemMutation = useRenameRackItem(jobId);
+  const renameItemGlobalMutation = useRenameRackItemGlobal(jobId);
+
+  const makeRenameLocal = (itemId: number) => async (newName: string) => {
+    await renameItemMutation.mutateAsync({ itemId, displayNameOverride: newName });
+  };
+  const makeRenameGlobal = (itemId: number) => async (newName: string) => {
+    await renameItemGlobalMutation.mutateAsync({ itemId, displayName: newName });
+  };
 
   const sortedRacks = useMemo(() => {
     if (!racks) return [];
@@ -151,11 +167,15 @@ export default function RackDrawingsView({
     itemsWithRU,
     "FRONT",
     activeRack.isDoubleWide,
+    makeRenameLocal,
+    makeRenameGlobal,
   ));
   const backItems = attachChildren(transformItemsWithPositioning(
     itemsWithRU,
     "BACK",
     activeRack.isDoubleWide,
+    makeRenameLocal,
+    makeRenameGlobal,
   ));
   const frontLeftItems = frontItems.filter((item) => item.side === "FRONT_LEFT");
   const frontRightItems = frontItems.filter((item) => item.side === "FRONT_RIGHT");
