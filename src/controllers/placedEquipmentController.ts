@@ -302,7 +302,9 @@ export const renameGlobal = async (req: Request, res: Response) => {
         where: { id: item.equipmentCatalogId },
         data: { displayName: displayName.trim() },
       });
-      res.status(200).json({ message: 'Global name updated' });
+      // Fetch and return the updated pullsheet item
+      const updatedItem = await prisma.pullsheetItem.findUnique({ where: { id: equipmentId } });
+      res.status(200).json(updatedItem);
       return;
     }
 
@@ -311,7 +313,9 @@ export const renameGlobal = async (req: Request, res: Response) => {
         where: { id: item.genericEquipmentId },
         data: { displayName: displayName.trim() },
       });
-      res.status(200).json({ message: 'Global name updated' });
+      // Fetch and return the updated pullsheet item
+      const updatedItem = await prisma.pullsheetItem.findUnique({ where: { id: equipmentId } });
+      res.status(200).json(updatedItem);
       return;
     }
 

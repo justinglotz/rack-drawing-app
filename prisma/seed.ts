@@ -5,6 +5,10 @@ const genericEquipmentData = [
   { name: '4U Vent Door', category: 'Vent Doors', rackUnits: 4 },
   { name: '3U Vent Door', category: 'Vent Doors', rackUnits: 3 },
   { name: '2U Vent Door', category: 'Vent Doors', rackUnits: 2 },
+  { name: '6U Door', category: 'Doors', rackUnits: 6 },
+  { name: '3U Door', category: 'Doors', rackUnits: 3 },
+  { name: '2U Door', category: 'Doors', rackUnits: 2 },
+  { name: '4U Door', category: 'Doors', rackUnits: 4 },
   { name: '3U Vent Blank', category: 'Vent Blanks', rackUnits: 3 },
   { name: '2U Vent Blank', category: 'Vent Blanks', rackUnits: 2 },
   { name: '1U Vent Blank', category: 'Vent Blanks', rackUnits: 1 },
@@ -14,6 +18,9 @@ const genericEquipmentData = [
   { name: '2U Drawer', category: 'Drawers', rackUnits: 2 },
   { name: '3U Drawer', category: 'Drawers', rackUnits: 3 },
   { name: '4U Drawer', category: 'Drawers', rackUnits: 4 },
+  { name: '1U Brush Panel', category: 'Brush Panels', rackUnits: 1 },
+  { name: '2U Brush Panel', category: 'Brush Panels', rackUnits: 2 },
+  { name: 'Fans', category: 'Fans', rackUnits: 3 },
 ];
 
 async function main() {
