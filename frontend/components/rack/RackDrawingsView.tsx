@@ -1,0 +1,231 @@
+"use client";
+
+import { useMemo } from "react";
+import { useRackDrawings, useUpdateRackName } from "@/hooks/useRackDrawings";
+import { PlacedItem } from "@/types/rackDrawingTypes";
+import RackDrawing, { RackItem } from "./RackDrawing";
+import { Button } from "@/components/ui/button";
+import type { Side } from "@/types/rackDrawingTypes";
+import { useRenameRackItem, useRenameRackItemGlobal } from "@/hooks/usePullsheetItems";
+
+interface RackDrawingsViewProps {
+  jobId: number;
+  tourShow: string;
+  activeRackId: number | null;
+  onActiveRackChange: (id: number) => void;
+  draggedItemSize: number | null;
+  draggedItemId: number | null;
+  hoveredDropId: string | null;
+}
+
+function toRackItem(
+  item: PlacedItem,
+  defaultStartPosition?: number,
+  defaultSide?: Side,
+  onRenameLocal?: (newName: string) => Promise<void>,
+  onRenameGlobal?: (newName: string) => Promise<void>,
+): RackItem {
+  const side = item.side ?? defaultSide ?? "FRONT";
+  const startPosition = item.startPosition ?? defaultStartPosition ?? 1;
+
+  return {
+    id: item.id,
+    name: item.displayNameOverride || item.name,
+    startU: startPosition,
+    endU: startPosition + item.rackUnits - 1,
+    side,
+    category: (item.category ?? "default") as
+      | "power"
+      | "wireless"
+      | "network"
+      | "console"
+      | "generic"
+      | "default",
+    onRenameLocal,
+    onRenameGlobal,
+  };
+}
+
+function transformItemsWithPositioning(
+  items: PlacedItem[],
+  sideFilter: "FRONT" | "BACK",
+  isDoubleWide: boolean,
+  makeRenameLocal: (itemId: number) => (newName: string) => Promise<void>,
+  makeRenameGlobal: (itemId: number) => (newName: string) => Promise<void>,
+): RackItem[] {
+  const defaultSide: Side = isDoubleWide
+    ? sideFilter === "FRONT"
+      ? "FRONT_LEFT"
+      : "BACK_LEFT"
+    : sideFilter;
+
+  const placed: RackItem[] = [];
+  const unplaced: Array<{ item: PlacedItem; position: number }> = [];
+
+  let currentUnplacedPos = 1;
+  for (const item of items) {
+    const side = item.side ?? "FRONT";
+    if (side.includes(sideFilter)) {
+      if (item.startPosition !== null && item.startPosition !== undefined) {
+        placed.push(toRackItem(item, undefined, defaultSide, makeRenameLocal(item.id), makeRenameGlobal(item.id)));
+      } else {
+        unplaced.push({ item, position: currentUnplacedPos });
+        currentUnplacedPos += item.rackUnits;
+      }
+    }
+  }
+
+  const unplacedRackItems = unplaced.map(({ item, position }) =>
+    toRackItem(item, position, defaultSide, makeRenameLocal(item.id), makeRenameGlobal(item.id)),
+  );
+
+  return [...placed, ...unplacedRackItems];
+}
+
+export default function RackDrawingsView({
+  jobId,
+  tourShow,
+  activeRackId,
+  onActiveRackChange,
+  draggedItemSize,
+  draggedItemId,
+  hoveredDropId,
+}: RackDrawingsViewProps) {
+  const { data: racks, isLoading, error } = useRackDrawings(jobId);
+  const updateRackNameMutation = useUpdateRackName(jobId);
+  const renameItemMutation = useRenameRackItem(jobId);
+  const renameItemGlobalMutation = useRenameRackItemGlobal(jobId);
+
+  const makeRenameLocal = (itemId: number) => async (newName: string) => {
+    await renameItemMutation.mutateAsync({ itemId, displayNameOverride: newName });
+  };
+  const makeRenameGlobal = (itemId: number) => async (newName: string) => {
+    await renameItemGlobalMutation.mutateAsync({ itemId, displayName: newName });
+  };
+
+  const sortedRacks = useMemo(() => {
+    if (!racks) return [];
+    return [...racks].sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [racks]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">Loading rack drawings...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    console.log(error);
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-destructive">Failed to load rack drawings</p>
+      </div>
+    );
+  }
+
+  if (!racks || racks.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">No rack drawings available</p>
+      </div>
+    );
+  }
+
+  const displayRackId = activeRackId ?? sortedRacks[0]?.id;
+  const activeRack = sortedRacks.find((r) => r.id === displayRackId);
+
+  if (!activeRack) {
+    return null;
+  }
+
+  // Build children map: parentId → grouped { name, count }[]
+  const childrenByParentId = new Map<number, { name: string; count: number }[]>();
+  for (const item of activeRack.placedItems) {
+    if (item.parentId == null) continue;
+    const childName = item.displayNameOverride ?? item.name;
+    const existing = childrenByParentId.get(item.parentId) ?? [];
+    const found = existing.find((c) => c.name === childName);
+    if (found) found.count++;
+    else existing.push({ name: childName, count: 1 });
+    childrenByParentId.set(item.parentId, existing);
+  }
+
+  // Only top-level items (no parentId) with rack space are rendered directly
+  const itemsWithRU = activeRack.placedItems.filter(
+    (item) => item.rackUnits > 0 && item.parentId == null,
+  );
+
+  const attachChildren = (items: RackItem[]) =>
+    items.map((item) => ({
+      ...item,
+      children: childrenByParentId.get(item.id),
+    }));
+
+  const frontItems = attachChildren(transformItemsWithPositioning(
+    itemsWithRU,
+    "FRONT",
+    activeRack.isDoubleWide,
+    makeRenameLocal,
+    makeRenameGlobal,
+  ));
+  const backItems = attachChildren(transformItemsWithPositioning(
+    itemsWithRU,
+    "BACK",
+    activeRack.isDoubleWide,
+    makeRenameLocal,
+    makeRenameGlobal,
+  ));
+  const frontLeftItems = frontItems.filter((item) => item.side === "FRONT_LEFT");
+  const frontRightItems = frontItems.filter((item) => item.side === "FRONT_RIGHT");
+  const backLeftItems = backItems.filter((item) => item.side === "BACK_LEFT");
+  const backRightItems = backItems.filter((item) => item.side === "BACK_RIGHT");
+
+  const [hoveredSide, hoveredUStr] = hoveredDropId?.split("-") ?? [];
+  const hoveredU = hoveredUStr ? parseInt(hoveredUStr) : null;
+
+  return (
+    <div className="space-y-6">
+      {sortedRacks.length > 1 && (
+        <div className="flex gap-2 border-b border-border">
+          {sortedRacks.map((rack) => (
+            <Button
+              key={rack.id}
+              variant={displayRackId === rack.id ? "default" : "ghost"}
+              onClick={() => onActiveRackChange(rack.id)}
+              className="rounded-b-none"
+            >
+              {rack.name}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      <RackDrawing
+        name={activeRack.name}
+        totalSpaces={activeRack.totalSpaces}
+        isDoubleWide={activeRack.isDoubleWide}
+        tourShow={tourShow}
+        frontItems={frontItems}
+        backItems={backItems}
+        frontLeftItems={frontLeftItems}
+        frontRightItems={frontRightItems}
+        backLeftItems={backLeftItems}
+        backRightItems={backRightItems}
+        draggedItemSize={draggedItemSize}
+        draggedItemId={draggedItemId}
+        hoveredU={hoveredU}
+        hoveredSide={(hoveredSide as Side) ?? null}
+        notes={activeRack.notes ?? undefined}
+        rackId={activeRack.id}
+        onNameChange={(newName) =>
+          updateRackNameMutation.mutateAsync({
+            rackId: activeRack.id,
+            name: newName,
+          })
+        }
+      />
+    </div>
+  );
+}

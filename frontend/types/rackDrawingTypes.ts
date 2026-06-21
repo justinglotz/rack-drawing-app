@@ -1,0 +1,62 @@
+import { z } from "zod";
+
+export const sideSchema = z.enum([
+  "FRONT",
+  "BACK",
+  "FRONT_LEFT",
+  "FRONT_RIGHT",
+  "BACK_LEFT",
+  "BACK_RIGHT",
+]);
+
+export type Side = z.infer<typeof sideSchema>;
+
+export const rackDrawingSchema = z.object({
+  id: z.number().int().positive(),
+  jobId: z.number().int().positive(),
+  name: z.string(),
+  totalSpaces: z.number().int().positive(),
+  isDoubleWide: z.boolean(),
+  flexSection: z.string(),
+  displayOrder: z.number().int().min(0),
+  notes: z.string().nullish(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type RackDrawing = z.infer<typeof rackDrawingSchema>;
+
+export const placedItemSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  displayNameOverride: z.string().nullish(),
+  rackUnits: z.number().int().min(0),
+  side: sideSchema.nullish(),
+  startPosition: z.number().int().min(1).nullish(),
+  parentId: z.number().int().positive().nullable(),
+  category: z.string().nullish(),
+});
+
+export type PlacedItem = z.infer<typeof placedItemSchema>;
+
+export const placedItemResponseSchema = placedItemSchema.extend({
+  jobId: z.number().int().positive(),
+  equipmentCatalogId: z.number().int().positive().nullable(),
+  genericEquipmentId: z.number().int().positive().nullable(),
+  rackDrawingId: z.number().int().positive(),
+  parentId: z.number().int().positive().nullable(),
+  quantity: z.number().int().positive(),
+  flexResourceId: z.string().nullable(),
+  flexSection: z.string(),
+  isFromPullsheet: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type PlacedItemResponse = z.infer<typeof placedItemResponseSchema>;
+
+export const rackDrawingWithItemsSchema = rackDrawingSchema.extend({
+  placedItems: z.array(placedItemSchema).default([]),
+});
+
+export type RackDrawingWithItems = z.infer<typeof rackDrawingWithItemsSchema>;
