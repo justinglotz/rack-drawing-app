@@ -1,0 +1,13 @@
+# Dependencies (hoisted at root by npm workspaces)
+node_modules/
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# OS
+.DS_Store
+
+# Editor / tooling
+*.tsbuildinfo
