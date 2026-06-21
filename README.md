@@ -1,11 +1,11 @@
-# Rack Drawing App v2
+# Rack Drawing App
 
 Monorepo containing the rack drawing application.
 
 ## Structure
 
 ```
-rack-drawing-app-v2/
+rack-drawing-app/
 ├── frontend/   # Next.js app (React 19, Tailwind, TanStack Query)
 └── backend/    # Express + Prisma API (PostgreSQL)
 ```

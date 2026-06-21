@@ -1,5 +1,5 @@
 {
-  "name": "rack-drawing-app-v2",
+  "name": "rack-drawing-app",
   "version": "1.0.0",
   "private": true,
   "description": "Rack drawing app — Next.js frontend + Express/Prisma backend",
