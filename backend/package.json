@@ -11,6 +11,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "dev": "nodemon --exec tsx src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/src/index.js",
     "db:seed": "tsx ./prisma/seed.ts"
   },
   "dependencies": {
@@ -22,6 +24,7 @@
     "pg": "^8.18.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.2.1",

@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+// In the browser, requests go through the host's published port (NEXT_PUBLIC_API_URL).
+// During server-side rendering inside Docker, "localhost" is the frontend container,
+// so server-side requests use INTERNAL_API_URL (e.g. http://backend:8000/api) when set.
+const API_BASE_URL =
+  typeof window === "undefined"
+    ? process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL
+    : process.env.NEXT_PUBLIC_API_URL;
 
 if (!API_BASE_URL) {
   throw new Error("NEXT_PUBLIC_API_URL environment variable is not defined");
