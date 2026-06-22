@@ -1,6 +1,9 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  // Emit `.js` import specifiers so the generated client compiles with tsc and
+  // runs under plain `node` in production (tsx also handles this in dev).
+  importFileExtension = "js"
 }
 
 datasource db {

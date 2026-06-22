@@ -28,9 +28,10 @@ RUN npm run build
 # ---- Production: minimal standalone runtime ----
 FROM base AS prod
 ENV NODE_ENV=production
-COPY --from=build /app/public ./public
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
+# Own the files as `node` so Next.js can write to .next/cache at runtime (ISR, image opt, fetch cache).
+COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
