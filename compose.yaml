@@ -26,6 +26,9 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-rack_drawing}
       PORT: 8000
+      # Flex API credentials (supply real values in your .env)
+      FLEX_BASE_API_URL: ${FLEX_BASE_API_URL}
+      FLEX_API_KEY: ${FLEX_API_KEY}
     ports:
       - "8000:8000"
     depends_on:
@@ -47,6 +50,9 @@ services:
       # Read by the browser, so it targets the published backend port on the host.
       # Must include the /api prefix — all backend routes are mounted under /api.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+      # Used for server-side rendering inside the container, where "localhost" is
+      # the frontend container — reach the backend over the compose network instead.
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://backend:8000/api}
     ports:
       - "3000:3000"
     depends_on:
