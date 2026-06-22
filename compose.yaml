@@ -45,7 +45,8 @@ services:
     restart: unless-stopped
     environment:
       # Read by the browser, so it targets the published backend port on the host.
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      # Must include the /api prefix — all backend routes are mounted under /api.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
     ports:
       - "3000:3000"
     depends_on:
