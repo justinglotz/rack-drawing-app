@@ -1,5 +1,6 @@
 import { type Request, type Response} from 'express';
 import { prisma } from '../config/prisma.js';
+import { effectiveDisplayName } from '../services/displayName.js';
 
 export const getRackDrawings = async (req: Request, res: Response) => {
   try {
@@ -43,8 +44,11 @@ export const getRackDrawingsForJob = async (req: Request, res: Response) => {
             side: true,
             startPosition: true,
             parentId: true,
+            equipmentCatalog: {
+              select: { displayName: true },
+            },
             genericEquipment: {
-              select: { category: true },
+              select: { category: true, displayName: true },
             },
           },
         },
@@ -67,7 +71,7 @@ export const getRackDrawingsForJob = async (req: Request, res: Response) => {
       placedItems: rack.pullsheetItems.map((item) => ({
         id: item.id,
         name: item.name,
-        displayNameOverride: item.displayNameOverride,
+        displayNameOverride: effectiveDisplayName(item),
         rackUnits: item.rackUnits,
         side: item.side,
         startPosition: item.startPosition,
