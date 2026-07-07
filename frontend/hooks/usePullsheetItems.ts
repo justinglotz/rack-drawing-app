@@ -234,6 +234,7 @@ export function useRenameRackItemGlobal(jobId: number) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.rackDrawings.byJob(jobId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pullsheetItems.unplaced(jobId) });
     },
   });
 }

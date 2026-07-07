@@ -1,5 +1,6 @@
 import { type Request, type Response} from 'express';
 import { prisma } from '../config/prisma.js';
+import { effectiveDisplayName } from '../services/displayName.js';
 
 export const getPlacedEquipment = async (req: Request, res: Response) => {
   try {
@@ -113,9 +114,18 @@ export const getUnplacedItems = async (req: Request, res: Response) => {
         jobId: id,
         rackDrawingId: null,
       },
+      include: {
+        equipmentCatalog: { select: { displayName: true } },
+        genericEquipment: { select: { displayName: true } },
+      },
     });
 
-    res.status(200).json(unplacedItems);
+    res.status(200).json(
+      unplacedItems.map((item) => ({
+        ...item,
+        displayNameOverride: effectiveDisplayName(item),
+      }))
+    );
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch unplaced items' });
   }

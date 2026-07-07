@@ -149,7 +149,7 @@ function RenameDialog({
               variant="default"
               className="w-full"
             >
-              Rename for this rack
+              Rename only this unit
             </Button>
             <Button
               onClick={() => handleAction("global")}

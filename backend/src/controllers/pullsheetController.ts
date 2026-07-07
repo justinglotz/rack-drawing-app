@@ -140,7 +140,6 @@ export const importPullsheet = async (req: Request, res: Response) => {
     });
 
     const catalogIdMap = new Map(finalCatalogItems.map(c => [c.flexResourceId, c.id]));
-    const catalogDisplayNameMap = new Map(finalCatalogItems.map(c => [c.flexResourceId, c.displayName]));
 
     // 5. Create PullsheetItems — one record per physical unit (quantity=N → N records each with quantity=1)
     // Parents and children are created in two parallel waves so children can reference parent IDs.
@@ -157,7 +156,7 @@ export const importPullsheet = async (req: Request, res: Response) => {
           flexResourceId: item.flexResourceId,
           flexSection: item.flexSection,
           notes: item.notes,
-          displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
+          displayNameOverride: null,
           job: { connect: { id: job.id } },
           ...(item.rackDrawingId ? { rackDrawing: { connect: { id: item.rackDrawingId } } } : {}),
           ...(item.flexResourceId && catalogIdMap.has(item.flexResourceId)
@@ -191,7 +190,7 @@ export const importPullsheet = async (req: Request, res: Response) => {
             flexResourceId: item.flexResourceId,
             flexSection: item.flexSection,
             notes: item.notes,
-            displayNameOverride: catalogDisplayNameMap.get(item.flexResourceId) ?? null,
+            displayNameOverride: null,
             job: { connect: { id: job.id } },
             ...(item.rackDrawingId ? { rackDrawing: { connect: { id: item.rackDrawingId } } } : {}),
             ...(parentId ? { parent: { connect: { id: parentId } } } : {}),
