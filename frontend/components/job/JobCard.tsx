@@ -53,7 +53,7 @@ export default function JobCard({ job }: JobCardProps) {
           {job.name}
         </div>
         <div className="shrink-0 rounded-full border border-[oklch(0.88_0_0)] bg-muted px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-muted-foreground">
-          {job.rackDrawings.length} racks
+          {job.rackDrawings.length} {job.rackDrawings.length === 1 ? "rack" : "racks"}
         </div>
       </div>
 
