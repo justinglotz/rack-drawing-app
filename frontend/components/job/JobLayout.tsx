@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { DragDropProvider } from "@dnd-kit/react";
 import { toast } from "sonner";
 import EquipmentSidebar from "@/components/equipment/EquipmentSidebar";
@@ -14,6 +16,7 @@ import type { Side } from "@/types/rackDrawingTypes";
 interface JobLayoutProps {
   jobId: number;
   jobName: string;
+  initialRackId?: number | null;
 }
 
 interface DragState {
@@ -22,8 +25,8 @@ interface DragState {
   dropId: string | null;
 }
 
-export default function JobLayout({ jobId, jobName }: JobLayoutProps) {
-  const [activeRackId, setActiveRackId] = useState<number | null>(null);
+export default function JobLayout({ jobId, jobName, initialRackId }: JobLayoutProps) {
+  const [activeRackId, setActiveRackId] = useState<number | null>(initialRackId ?? null);
   const [dragState, setDragState] = useState<DragState>({
     draggedItemId: null,
     draggedItemSize: null,
@@ -127,6 +130,13 @@ export default function JobLayout({ jobId, jobName }: JobLayoutProps) {
         <EquipmentSidebar jobId={jobId} />
         <main className="flex-1 overflow-auto bg-background flex flex-col">
           <header className="border-b border-border px-6 py-4">
+            <Link
+              href="/"
+              className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" />
+              Jobs
+            </Link>
             <h1 className="text-2xl font-bold text-foreground">{jobName}</h1>
           </header>
           <div className="flex-1 p-6 overflow-auto">

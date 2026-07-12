@@ -1,16 +1,33 @@
 import { z } from "zod";
 import { sideSchema } from "./rackDrawingTypes";
 
+export const jobRackSummarySchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  totalSpaces: z.number().int().positive(),
+  isDoubleWide: z.boolean(),
+  displayOrder: z.number().int().min(0),
+});
+
+export type JobRackSummary = z.infer<typeof jobRackSummarySchema>;
+
 export const jobSchema = z.object({
   id: z.number(),
   name: z.string(),
   description: z.string().nullish(),
   flexPullsheetId: z.string(),
   lastSyncedAt: z.string().nullish(),
+  leaveDate: z.string().nullish(),
   createdAt: z.string(),
 });
 
 export type Job = z.infer<typeof jobSchema>;
+
+export const jobWithRacksSchema = jobSchema.extend({
+  rackDrawings: z.array(jobRackSummarySchema),
+});
+
+export type JobWithRacks = z.infer<typeof jobWithRacksSchema>;
 
 export const pullsheetItemSchema = z.object({
   id: z.number().int().positive(),
