@@ -1,10 +1,24 @@
 import { type Request, type Response} from 'express';
 import { prisma } from '../config/prisma.js';
 
-// Get all jobs
+// Get all jobs, each with a lightweight summary of its rack drawings
 export const getJobs = async (req: Request, res: Response) => {
   try {
-    const jobs = await prisma.job.findMany();
+    const jobs = await prisma.job.findMany({
+      include: {
+        rackDrawings: {
+          select: {
+            id: true,
+            name: true,
+            totalSpaces: true,
+            isDoubleWide: true,
+            displayOrder: true,
+          },
+          orderBy: { displayOrder: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
     res.status(200).json(jobs);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch jobs' });

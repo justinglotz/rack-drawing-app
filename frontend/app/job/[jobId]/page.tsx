@@ -7,10 +7,15 @@ interface JobPageProps {
   params: {
     jobId: string;
   };
+  searchParams: {
+    rack?: string;
+  };
 }
 
-export default async function JobPage({ params }: JobPageProps) {
+export default async function JobPage({ params, searchParams }: JobPageProps) {
   const { jobId } = await params;
+  const { rack } = await searchParams;
+  const initialRackId = rack && /^\d+$/.test(rack) ? parseInt(rack, 10) : null;
 
   // Validate jobId is strictly digits-only (no partial matches like "12abc")
   if (!/^\d+$/.test(jobId)) {
@@ -38,5 +43,5 @@ export default async function JobPage({ params }: JobPageProps) {
     throw error;
   }
 
-  return <JobLayout jobId={jobIdNum} jobName={job.name} />;
+  return <JobLayout jobId={jobIdNum} jobName={job.name} initialRackId={initialRackId} />;
 }
