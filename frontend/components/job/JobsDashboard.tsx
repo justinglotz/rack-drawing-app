@@ -5,20 +5,28 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useJobs } from "@/hooks/useJobs";
-import JobCard, { SHOW_LEAVE_DATE } from "./JobCard";
+import JobCard, { SHOW_DATES } from "./JobCard";
 import type { JobWithRacks } from "@/types/jobTypes";
 
-type SortMode = "name" | "leave";
+type SortMode = "name" | "prep" | "leave";
+
+function byDate(field: "prepDate" | "leaveDate") {
+  return (a: JobWithRacks, b: JobWithRacks) => {
+    const aDate = a[field];
+    const bDate = b[field];
+    if (!aDate && !bDate) return a.name.localeCompare(b.name);
+    if (!aDate) return 1;
+    if (!bDate) return -1;
+    return aDate.localeCompare(bDate);
+  };
+}
 
 function sortJobs(jobs: JobWithRacks[], sort: SortMode): JobWithRacks[] {
   const sorted = [...jobs];
-  if (sort === "leave") {
-    sorted.sort((a, b) => {
-      if (!a.leaveDate && !b.leaveDate) return a.name.localeCompare(b.name);
-      if (!a.leaveDate) return 1;
-      if (!b.leaveDate) return -1;
-      return a.leaveDate.localeCompare(b.leaveDate);
-    });
+  if (sort === "prep") {
+    sorted.sort(byDate("prepDate"));
+  } else if (sort === "leave") {
+    sorted.sort(byDate("leaveDate"));
   } else {
     sorted.sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -60,7 +68,7 @@ export default function JobsDashboard() {
           onChange={(e) => setQuery(e.target.value)}
           className="h-8 max-w-65 flex-1"
         />
-        {SHOW_LEAVE_DATE && (
+        {SHOW_DATES && (
           <>
             <span className="ml-auto text-[11px] font-medium text-muted-foreground">
               Sort by
@@ -71,6 +79,7 @@ export default function JobsDashboard() {
               className="h-8 cursor-pointer rounded-md border border-border bg-card px-2 text-sm text-foreground"
             >
               <option value="name">Name</option>
+              <option value="prep">Prep Date</option>
               <option value="leave">Leave Date</option>
             </select>
           </>
