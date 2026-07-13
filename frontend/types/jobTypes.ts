@@ -17,6 +17,7 @@ export const jobSchema = z.object({
   description: z.string().nullish(),
   flexPullsheetId: z.string(),
   lastSyncedAt: z.string().nullish(),
+  prepDate: z.string().nullish(),
   leaveDate: z.string().nullish(),
   createdAt: z.string(),
 });
