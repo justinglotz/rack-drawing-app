@@ -1,7 +1,7 @@
 import { type Request, type Response } from 'express';
 import { Prisma } from '../../generated/prisma/client.js';
 import { prisma } from '../config/prisma.js';
-import { fetchFlexPullsheetData } from '../services/flexApiService.js';
+import { fetchFlexPullsheetData, fetchFlexPullsheetDates } from '../services/flexApiService.js';
 import type { ParsedPullsheetItem } from '../services/flexParser.js';
 
 export const importPullsheet = async (req: Request, res: Response) => {
@@ -43,6 +43,16 @@ export const importPullsheet = async (req: Request, res: Response) => {
 
     const parsedData = await fetchFlexPullsheetData(pullsheetId);
 
+    // Best-effort — the pull sheet import shouldn't fail if Flex's key-info/
+    // header-data calls error out or the fields aren't set on this job.
+    let prepDate: Date | null = null;
+    let leaveDate: Date | null = null;
+    try {
+      ({ prepDate, leaveDate } = await fetchFlexPullsheetDates(pullsheetId));
+    } catch (error) {
+      console.error('Failed to fetch prep/leave dates from Flex:', error);
+    }
+
     // 1. Create Job
     let job;
     try {
@@ -50,6 +60,8 @@ export const importPullsheet = async (req: Request, res: Response) => {
         data: {
           name: parsedData.job.name,
           flexPullsheetId: pullsheetId,
+          prepDate,
+          leaveDate,
         },
       });
     } catch (error) {

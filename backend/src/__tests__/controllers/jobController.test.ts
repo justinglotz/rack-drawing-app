@@ -305,7 +305,7 @@ describe('Job Controller', () => {
 
       expect(res._status).toBe(400)
       expect(res._json).toEqual({
-        error: 'At least one field (name or description) is required',
+        error: 'At least one field (name, description, prepDate, or leaveDate) is required',
       })
       expect(mockPrisma.job.update).not.toHaveBeenCalled()
     })
@@ -327,6 +327,89 @@ describe('Job Controller', () => {
       expect(mockPrisma.job.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { description: null },
+      })
+    })
+
+    it('updates leaveDate', async () => {
+      mockPrisma.job.update.mockResolvedValue({ id: 1, name: 'Show', leaveDate: new Date('2026-07-24') })
+
+      const res = makeRes()
+      await editJob(makeReq({ leaveDate: '2026-07-24' }, { id: '1' }), res)
+
+      expect(res._status).toBe(200)
+      expect(mockPrisma.job.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { leaveDate: new Date('2026-07-24') },
+      })
+    })
+
+    it('allows leaveDate to be explicitly cleared', async () => {
+      mockPrisma.job.update.mockResolvedValue({ id: 1, name: 'Show', leaveDate: null })
+
+      const res = makeRes()
+      await editJob(makeReq({ leaveDate: null }, { id: '1' }), res)
+
+      expect(res._status).toBe(200)
+      expect(mockPrisma.job.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { leaveDate: null },
+      })
+    })
+
+    it('returns 400 when leaveDate is not a valid date', async () => {
+      const res = makeRes()
+      await editJob(makeReq({ leaveDate: 'not-a-date' }, { id: '1' }), res)
+
+      expect(res._status).toBe(400)
+      expect(res._json).toEqual({ error: 'leaveDate must be a valid date string or null' })
+      expect(mockPrisma.job.update).not.toHaveBeenCalled()
+    })
+
+    it('updates prepDate', async () => {
+      mockPrisma.job.update.mockResolvedValue({ id: 1, name: 'Show', prepDate: new Date('2026-07-15') })
+
+      const res = makeRes()
+      await editJob(makeReq({ prepDate: '2026-07-15' }, { id: '1' }), res)
+
+      expect(res._status).toBe(200)
+      expect(mockPrisma.job.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { prepDate: new Date('2026-07-15') },
+      })
+    })
+
+    it('allows prepDate to be explicitly cleared', async () => {
+      mockPrisma.job.update.mockResolvedValue({ id: 1, name: 'Show', prepDate: null })
+
+      const res = makeRes()
+      await editJob(makeReq({ prepDate: null }, { id: '1' }), res)
+
+      expect(res._status).toBe(200)
+      expect(mockPrisma.job.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { prepDate: null },
+      })
+    })
+
+    it('returns 400 when prepDate is not a valid date', async () => {
+      const res = makeRes()
+      await editJob(makeReq({ prepDate: 'not-a-date' }, { id: '1' }), res)
+
+      expect(res._status).toBe(400)
+      expect(res._json).toEqual({ error: 'prepDate must be a valid date string or null' })
+      expect(mockPrisma.job.update).not.toHaveBeenCalled()
+    })
+
+    it('updates both prepDate and leaveDate together', async () => {
+      mockPrisma.job.update.mockResolvedValue({ id: 1, name: 'Show' })
+
+      const res = makeRes()
+      await editJob(makeReq({ prepDate: '2026-07-15', leaveDate: '2026-07-19' }, { id: '1' }), res)
+
+      expect(res._status).toBe(200)
+      expect(mockPrisma.job.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { prepDate: new Date('2026-07-15'), leaveDate: new Date('2026-07-19') },
       })
     })
 
