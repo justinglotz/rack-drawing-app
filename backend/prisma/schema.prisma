@@ -16,6 +16,7 @@ model Job {
   description     String?         @db.VarChar(1000)
   flexPullsheetId String          @unique @db.VarChar(255)
   lastSyncedAt    DateTime?
+  prepDate        DateTime?
   leaveDate       DateTime?
   createdAt       DateTime        @default(now())
   pullsheetItems  PullsheetItem[]

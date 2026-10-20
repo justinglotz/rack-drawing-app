@@ -42,9 +42,11 @@ jest.unstable_mockModule('../../../generated/prisma/client.js', () => ({
 
 // --- Mock Flex API Service ---
 const mockFetchFlexPullsheetData = jest.fn<any>()
+const mockFetchFlexPullsheetDates = jest.fn<any>()
 
 jest.unstable_mockModule('../../services/flexApiService.js', () => ({
   fetchFlexPullsheetData: mockFetchFlexPullsheetData,
+  fetchFlexPullsheetDates: mockFetchFlexPullsheetDates,
 }))
 
 // --- Helpers ---
@@ -112,6 +114,7 @@ const PARSED_DATA = {
 function setupSuccessfulImportMocks() {
   mockPrisma.job.findUnique.mockResolvedValue(null)
   mockFetchFlexPullsheetData.mockResolvedValue(PARSED_DATA)
+  mockFetchFlexPullsheetDates.mockResolvedValue({ prepDate: null, leaveDate: null })
   mockPrisma.job.create.mockResolvedValue({ id: 1, name: 'Test Show 2026' })
   mockPrisma.rackDrawing.create.mockResolvedValue({ id: 10 })
   mockPrisma.equipmentCatalog.findMany

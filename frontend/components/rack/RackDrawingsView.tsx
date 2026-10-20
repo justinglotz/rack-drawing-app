@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useRackDrawings, useUpdateRackName } from "@/hooks/useRackDrawings";
 import { PlacedItem } from "@/types/rackDrawingTypes";
 import RackDrawing, { RackItem } from "./RackDrawing";
-import { Button } from "@/components/ui/button";
+import { rackKind } from "./rackUtils";
 import type { Side } from "@/types/rackDrawingTypes";
 import { useRenameRackItem, useRenameRackItemGlobal } from "@/hooks/usePullsheetItems";
 
@@ -188,17 +188,35 @@ export default function RackDrawingsView({
   return (
     <div className="space-y-6">
       {sortedRacks.length > 1 && (
-        <div className="flex gap-2 border-b border-border">
-          {sortedRacks.map((rack) => (
-            <Button
-              key={rack.id}
-              variant={displayRackId === rack.id ? "default" : "ghost"}
-              onClick={() => onActiveRackChange(rack.id)}
-              className="rounded-b-none"
-            >
-              {rack.name}
-            </Button>
-          ))}
+        <div
+          role="tablist"
+          aria-label="Racks"
+          className="flex flex-wrap gap-2"
+        >
+          {sortedRacks.map((rack) => {
+            const isActive = displayRackId === rack.id;
+            return (
+              <button
+                key={rack.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => onActiveRackChange(rack.id)}
+                className={`flex shrink-0 items-baseline gap-2 whitespace-nowrap rounded-md border px-3.5 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                  isActive
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {rack.name}
+                <span
+                  className={`text-xs font-normal ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+                >
+                  {rack.totalSpaces}U {rackKind(rack, { short: true })}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
