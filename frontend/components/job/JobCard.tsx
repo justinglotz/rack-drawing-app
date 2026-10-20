@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useUpdateJobDates } from "@/hooks/useJobs";
+import { rackKind } from "@/components/rack/rackUtils";
 import type { JobWithRacks } from "@/types/jobTypes";
 
 export const SHOW_DATES = true;
@@ -42,7 +43,7 @@ function toDateInputValue(isoDate: string | null | undefined): string {
 }
 
 function rackMeta(rack: JobWithRacks["rackDrawings"][number]): string {
-  return `${rack.totalSpaces}U · ${rack.isDoubleWide ? "Double-Wide" : "Single-Wide"}`;
+  return `${rack.totalSpaces}U · ${rackKind(rack)}`;
 }
 
 function EditDateDialog({
