@@ -182,7 +182,7 @@ export default function JobCard({ job }: JobCardProps) {
 
       {SHOW_DATES && (
         <div className="mt-2">
-          <DateStripe job={job} field="prepDate" onEdit={() => setEditingField("prepDate")} />
+          {/* <DateStripe job={job} field="prepDate" onEdit={() => setEditingField("prepDate")} /> */}
           <DateStripe job={job} field="leaveDate" onEdit={() => setEditingField("leaveDate")} />
         </div>
       )}

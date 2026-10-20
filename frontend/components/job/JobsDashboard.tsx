@@ -36,7 +36,7 @@ function sortJobs(jobs: JobWithRacks[], sort: SortMode): JobWithRacks[] {
 export default function JobsDashboard() {
   const { data: jobs, isLoading } = useJobs();
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortMode>("name");
+  const [sort, setSort] = useState<SortMode>("leave");
 
   const visibleJobs = useMemo(() => {
     const list = jobs ?? [];
